@@ -7,6 +7,7 @@
 
 from datetime import datetime, date, timedelta
 import math
+from pythonlangutil.overload import Overload, signature
 import numpy as np
 
 BEGIN_OF_TIME_BORLAND = date(1899, 12, 30)
@@ -86,6 +87,8 @@ class TDateTime:
                 fs += "%Y"
         return out.strftime(fs)
 
+    @Overload
+    @signature('bool', 'bool', 'bool', 'bool')
     def strTime(self, hours=True, minutes=True, seconds=True, milliseconds=True):
         out = datetime(1899, 12, 30,
                        hour=self.hh, minute=self.mm, second=self.ss)
@@ -109,6 +112,11 @@ class TDateTime:
             result += ' ' + ms
         return result
 
+    @strTime.overload
+    @signature('str')
+    def strTime(self, timeformat: str):
+        return self.strTime(*TDateTime.timeformat_parser(timeformat))
+
     def strSeconds(self):
         return str(self.hh * 3600 + self.mm * 60 + self.ss)
 
@@ -117,3 +125,16 @@ class TDateTime:
         ms = "%.0f" % self.ms
         ms = '{0:0>3}'.format(ms)
         return out.strftime("%d.%m.%Y %H:%M:%S") + ' ' + ms
+
+    @staticmethod
+    def timeformat_parser(timeformat: str):
+        hours, minutes, seconds, milliseconds = False, False, False, False
+        if 'h' in timeformat:
+            hours = True
+        if 'm' in timeformat:
+            minutes = True
+        if 's' in timeformat:
+            seconds = True
+        if '+' in timeformat:
+            milliseconds = True
+        return hours, minutes, seconds, milliseconds

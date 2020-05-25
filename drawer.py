@@ -42,9 +42,9 @@ class Drawer:
         self.ax.set_ylabel(ylabel, fontsize=11, rotation=90, fontweight='bold')
         min_t, max_t = sys.maxsize, 0
         # ax.xaxis.set_major_formatter(FormatStrFormatter('%0.1f'))
-        # print(DATA)
+
         for key in DATA.keys():
-            # print('key: {}'.format(key))
+
             T, V = [], []
             for t, v in DATA[key]:
                 T.append(t)
@@ -53,19 +53,18 @@ class Drawer:
                     min_t = t
                 if t > max_t:
                     max_t = t
-            # print(T)
-            # print(linestyles)
-            l_st = ''
+
+            lst = ''
             try:
                 l, c, w, m = labels[key], colors[key], linewidth, marker
                 try:
-                    l_st = linestyles[key]
+                    lst = linestyles[key]
                 except TypeError:
                     pass
             except KeyError:
                 continue
 
-            self.__plot(T, V, l, c, w, m, l_st)
+            self.__plot(T, V, l, c, w, m, lst)
 
             plt.draw()
             plt.gcf().canvas.flush_events()
@@ -73,11 +72,10 @@ class Drawer:
         for x in axvlines:
             plt.axvline(x=x, linewidth=0.5, linestyle=':', color='black')
 
-        # print(min_t, max_t)
         x_ticks_step = (max_t - min_t) / 10
         x_ticks_pos = [t for t in np.arange(min_t, max_t + x_ticks_step, x_ticks_step, dtype=float)]
-        # print(x_ticks_pos)
-        x_ticks_labels = [Double2TDateTime(t).strTime(*Drawer.__timeformat_parser(timeformat))
+
+        x_ticks_labels = [Double2TDateTime(t).strTime(timeformat)
                           for t in np.arange(min_t, max_t + x_ticks_step, x_ticks_step, dtype=float)]
         if timeformat == '!s':
             x_ticks_labels = [Double2TDateTime(t).strSeconds()
@@ -101,57 +99,16 @@ class Drawer:
         return
 
     def __plot(self, T, V, label, color, linewidth, marker, linestyle):
-        l, c, w, m, l_st = label, color, linewidth, marker, linestyle
-        if l and c and w and l_st:
-            self.ax.plot(T, V, label=l, color=c, linewidth=w, linestyle=l_st)
-            return
-        if l and c and w and m:
-            self.ax.plot(T, V, label=l, color=c, linewidth=w, marker='+', linestyle='')
-        if l and c and not w and m:
-            self.ax.plot(T, V, label=l, color=c, marker='+', linestyle='')
-        if l and not c and w and m:
-            self.ax.plot(T, V, label=l, linewidth=w, marker='+', linestyle='')
-        if l and not c and not w and m:
-            self.ax.plot(T, V, label=l, marker='+', linestyle='')
-        if not l and c and w and m:
-            self.ax.plot(T, V, color=c, linewidth=w, marker='+', linestyle='')
-        if not l and c and not w and m:
-            self.ax.plot(T, V, color=c, marker='+', linestyle='')
-        if not l and not c and w and m:
-            self.ax.plot(T, V, linewidth=w, marker='+', linestyle='')
-        if not l and not c and not w and m:
-            self.ax.plot(T, V, marker='+', linestyle='')
-        if l and c and w and not m:
-            self.ax.plot(T, V, label=l, color=c, linewidth=w)
-        if l and c and not w and not m:
-            self.ax.plot(T, V, label=l, color=c)
-        if l and not c and w and not m:
-            self.ax.plot(T, V, label=l, linewidth=w)
-        if l and not c and not w and not m:
-            self.ax.plot(T, V, label=l)
-        if not l and c and w and not m:
-            self.ax.plot(T, V, color=c, linewidth=w)
-        if not l and c and not w and not m:
-            self.ax.plot(T, V, color=c)
-        if not l and not c and w and not m:
-            self.ax.plot(T, V, linewidth=w)
-        if not l and not c and not w and not m:
-            self.ax.plot(T, V)
+        m, w, lst = '', 1, '--'
+        if marker:
+            m = '+'
+            lst = ''
+        if linewidth:
+            w = linewidth
+        if linestyle:
+            lst = linestyle
+        self.ax.plot(T, V, label=label, color=color, linewidth=w, marker=m, linestyle=lst)
         return
-
-    @staticmethod
-    def __timeformat_parser(timeformat: str):
-        hours, minutes, seconds, milliseconds = False, False, False, False
-        for char in timeformat:
-            if char == 'h':
-                hours = True
-            if char == 'm':
-                minutes = True
-            if char == 's':
-                seconds = True
-            if char == '+':
-                milliseconds = True
-        return hours, minutes, seconds, milliseconds
 
     @staticmethod
     def show():
