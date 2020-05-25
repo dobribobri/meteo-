@@ -1,6 +1,11 @@
 # meteo-
 Processing of microwave radiometric measurements of atmospheric radio emission (18-27 GHz)
 
+Example:
+
+$ python3 main.py -Y 2019 -M 08 -D 23 --hh 18 --mm 30 --range --sameday --H1 20 --m1 00 --noqw --nocturb --saveplots --savereports
+
+
 <pre>usage: main.py [-h] [--meteo METEO [METEO ...]] [--update_meteo]
                [--update_calibr] [-Y YEAR] [-M MONTH] [-D DAY] [-H HH] [-m MM]
                [-s SS] [--range] [--sameday] [--Y1 Y1] [--M1 M1] [--D1 D1]
