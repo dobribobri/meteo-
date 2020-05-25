@@ -443,7 +443,6 @@ if __name__ == '__main__':
                             colors=default.parameter.plot.colors.basic_plus,
                             linestyles=default.parameter.plot.linestyles.basic_plus,
                             linewidth=1.35, timeformat='hm',
-                            textsubs=default.parameter.plot.textsubs.tb,
                             savefig_path=savefig_path)
         if int(namespace.savereports):
             if not os.path.exists(Settings.Reports.ReportRoot):

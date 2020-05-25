@@ -28,7 +28,7 @@ class Drawer:
     def drawDATA(self, DATA, title='', xlabel='', ylabel='',
                  labels=None, colors=None, linewidth=None,
                  timeformat='hms+', marker=False,
-                 savefig_path='', axvlines=None, linestyles=None, textsubs=None):
+                 savefig_path='', axvlines=None, linestyles=None):
         if axvlines is None:
             axvlines = []
         plt.ion()
@@ -87,11 +87,6 @@ class Drawer:
                        # bbox_to_anchor=(0.7, 0.4),
                        # frameon=False
                        )
-
-        # print(textsubs)
-        # if textsubs:
-        #     for item in textsubs:
-        #         plt.text(*item)
 
         plt.ioff()
         if savefig_path:

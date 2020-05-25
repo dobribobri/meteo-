@@ -69,9 +69,6 @@ class parameter:
                           25.8: additional_linestyles['densely dashed'],
                           26.6: ':'}
 
-        class textsubs:
-            tb = [(0.6, 0.6, '1'), (0.5, 0.5, '2'), (0.5, 0.5, '3'), (0.5, 0.5, '4')]
-
         class labels:
             def __init__(self, language: str):
                 self.lang = language
