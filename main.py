@@ -274,9 +274,9 @@ if __name__ == '__main__':
                     os.makedirs(Settings.Plots.TbPlotDir)
                 savefig_path = os.path.join(Settings.Plots.TbPlotDir, mlbl + '.tb' + '.png')
             drawer.drawDATA(DATA, title=u'', xlabel=u'time (hh:mm)', ylabel=u'Brightness temperature, K',
-                            labels=default.parameter.plot.labels.BASIC_PLUS,
-                            colors=default.parameter.plot.colors.BASIC_PLUS,
-                            linestyles=default.parameter.plot.linestyles.BASIC_PLUS,
+                            labels=default.parameter.plot.labels('en').basic_plus,
+                            colors=default.parameter.plot.colors.basic_plus,
+                            linestyles=default.parameter.plot.linestyles.basic_plus,
                             linewidth=1.35, timeformat='hm',
                             savefig_path=savefig_path)
         if int(namespace.savereports):
@@ -295,32 +295,32 @@ if __name__ == '__main__':
                                           default.parameter.struct_func.part)
             # printDATA(SFDATA, shortened=True)
 
-            C_alpha = turbulence.c_alpha(SFDATA)
-            drawer.drawDATA(C_alpha, title=r'$C_{\alpha}$',
-                            xlabel=u'sec.',
-                            ylabel=r'$10^{-3}\cdot$K$^{-1}\cdot$m$^{-\frac{8}{3}}$',
-                            labels=default.parameter.plot.labels.BASIC_PLUS,
-                            colors=default.parameter.plot.colors.BASIC_PLUS,
-                            timeformat='ms'
-                            )
+            # C_alpha = turbulence.c_alpha(SFDATA)
+            # drawer.drawDATA(C_alpha, title=r'$C_{\alpha}$',
+            #                 xlabel=u'sec.',
+            #                 ylabel=r'$10^{-3}\cdot$K$^{-1}\cdot$m$^{-\frac{8}{3}}$',
+            #                 labels=default.parameter.plot.labels('en').basic_plus,
+            #                 colors=default.parameter.plot.colors.basic_plus,
+            #                 timeformat='ms'
+            #                 )
 
-            maxlen = 0
-            s = 'time '
-            for freq in SFDATA.keys():
-                s += str(freq) + ' '
-                if len(SFDATA[freq]) > maxlen:
-                    maxlen = len(SFDATA[freq])
-            with open('./analysis/bb.txt', 'w') as a02f:
-                a02f.write(s[:-1] + '\n')
-                for i in range(1, maxlen):
-                    s = str(i*11) + ' '
-                    for freq in SFDATA.keys():
-                        try:
-                            _, val = SFDATA[freq][i]
-                            s += str(val) + ' '
-                        except IndexError:
-                            s += '0 '
-                    a02f.write(s[:-1] + '\n')
+            # maxlen = 0
+            # s = 'time '
+            # for freq in SFDATA.keys():
+            #     s += str(freq) + ' '
+            #     if len(SFDATA[freq]) > maxlen:
+            #         maxlen = len(SFDATA[freq])
+            # with open('./analysis/bb.txt', 'w') as a02f:
+            #     a02f.write(s[:-1] + '\n')
+            #     for i in range(1, maxlen):
+            #         s = str(i*11) + ' '
+            #         for freq in SFDATA.keys():
+            #             try:
+            #                 _, val = SFDATA[freq][i]
+            #                 s += str(val) + ' '
+            #             except IndexError:
+            #                 s += '0 '
+            #         a02f.write(s[:-1] + '\n')
 
             if not int(namespace.noplots):
                 # Отрисовка значений структурных функций
@@ -329,14 +329,16 @@ if __name__ == '__main__':
                     if not os.path.exists(Settings.Plots.SFPlotDir):
                         os.makedirs(Settings.Plots.SFPlotDir)
                     savefig_path = os.path.join(Settings.Plots.SFPlotDir, mlbl + '.sf' + '.png')
-                drawer.drawDATA(SFDATA, title=u'Структурные функции', xlabel=u'mm:ss (время)', ylabel='sqrt(S)',
-                                labels=default.parameter.plot.labels.rus.BASIC_PLUS,
-                                colors=default.parameter.plot.colors.BASIC_PLUS,
+                drawer.drawDATA(SFDATA, title=u'Structural functions', xlabel=u'mm:ss (time)', ylabel='sqrt(S)',
+                                labels=default.parameter.plot.labels('en').basic_plus,
+                                colors=default.parameter.plot.colors.basic_plus,
                                 marker=True, timeformat='ms',
                                 savefig_path=savefig_path,
-                                axvlines=[default.parameter.struct_func.t25sec,
-                                          default.parameter.struct_func.t50sec, default.parameter.struct_func.t100sec,
-                                          default.parameter.struct_func.t150sec, default.parameter.struct_func.t200sec])
+                                axvlines=[default.parameter.struct_func.borland.t_sec(25),
+                                          default.parameter.struct_func.borland.t_sec(50),
+                                          default.parameter.struct_func.borland.t_sec(100),
+                                          default.parameter.struct_func.borland.t_sec(150),
+                                          default.parameter.struct_func.borland.t_sec(200)])
             if int(namespace.savereports):
                 if not os.path.exists(Settings.Reports.SFReportDir):
                     os.makedirs(Settings.Reports.SFReportDir)
@@ -358,9 +360,9 @@ if __name__ == '__main__':
                     if not os.path.exists(Settings.Plots.WeatherPlotDir):
                         os.makedirs(Settings.Plots.WeatherPlotDir)
                         savefig_path = os.path.join(Settings.Plots.WeatherPlotDir, mlbl + '.weather' + '.png')
-                drawer.drawDATA(WeatherDATA, title=u'Погода', xlabel=u'hh:mm (время)', ylabel=u'Значения',
-                                labels=default.parameter.plot.labels.rus.WEATHER,
-                                colors=default.parameter.plot.colors.WEATHER,
+                drawer.drawDATA(WeatherDATA, title=u'Weather', xlabel=u'hh:mm (time)', ylabel=u'Values',
+                                labels=default.parameter.plot.labels('en').weather,
+                                colors=default.parameter.plot.colors.weather,
                                 linewidth=1.35, timeformat='hm',
                                 savefig_path=savefig_path)
             if int(namespace.savereports):
@@ -374,7 +376,7 @@ if __name__ == '__main__':
 
         if not int(namespace.noqw):
             # Получение полной массы водяного пара и водозапаса облаков
-            QDATA, WDATA = QW(m, weather, Tavg=5, Tcl=-2).getQWDATA(freq_pairs=default.parameter.freqs.QW2_FREQ_PAIRS,
+            QDATA, WDATA = QW(m, weather, Tavg=5, Tcl=-2).getQWDATA(freq_pairs=default.parameter.freqs.qw2_freq_pairs,
                                                                     time_step_sec=60,
                                                                     _w_correction=False)
 
@@ -386,14 +388,16 @@ if __name__ == '__main__':
                         os.makedirs(Settings.Plots.QWPlotDir)
                     savefig_path_q = os.path.join(Settings.Plots.QWPlotDir, mlbl + '.q' + '.png')
                     savefig_path_w = os.path.join(Settings.Plots.QWPlotDir, mlbl + '.w' + '.png')
-                drawer.drawDATA(QDATA, title=u'Полная масса водяного пара', xlabel=u'hh:mm (время)', ylabel=r'г/см$^2$',
-                                labels=default.parameter.plot.labels.rus.QW2,
-                                colors=default.parameter.plot.colors.QW2,
+                drawer.drawDATA(QDATA, title=u'Total mass of water vapor', xlabel=u'hh:mm (time)',
+                                ylabel=r'g/cm$^2$',
+                                labels=default.parameter.plot.labels('en').qw2,
+                                colors=default.parameter.plot.colors.qw2,
                                 linewidth=1.35, timeformat='hm',
                                 savefig_path=savefig_path_q)
-                drawer.drawDATA(WDATA, title=u'Водозапас облаков', xlabel=u'hh:mm (время)', ylabel=r'кг/м$^2$',
-                                labels=default.parameter.plot.labels.rus.QW2,
-                                colors=default.parameter.plot.colors.QW2,
+                drawer.drawDATA(WDATA, title=u'Liquid water content in clouds', xlabel=u'hh:mm (time)',
+                                ylabel=r'kg/m$^2$',
+                                labels=default.parameter.plot.labels('en').qw2,
+                                colors=default.parameter.plot.colors.qw2,
                                 linewidth=1.35, timeformat='hm',
                                 savefig_path=savefig_path_w)
 
@@ -433,11 +437,11 @@ if __name__ == '__main__':
                     os.makedirs(Settings.Plots.TbPlotDir)
                 savefig_path = os.path.join(Settings.Plots.TbPlotDir, lbl + '.tb' + '.png')
             drawer.drawDATA(DATA,
-                            title=u'Яркостные температуры',
+                            title=u'Brightness temperatures',
                             xlabel=u'time (hh:mm)', ylabel=u'Brightness temperature, K',
-                            labels=default.parameter.plot.labels.BASIC_PLUS,
-                            colors=default.parameter.plot.colors.BASIC_PLUS,
-                            linestyles=default.parameter.plot.linestyles.BASIC_PLUS,
+                            labels=default.parameter.plot.labels('en').basic_plus,
+                            colors=default.parameter.plot.colors.basic_plus,
+                            linestyles=default.parameter.plot.linestyles.basic_plus,
                             linewidth=1.35, timeformat='hm',
                             textsubs=default.parameter.plot.textsubs.tb,
                             savefig_path=savefig_path)
@@ -466,15 +470,17 @@ if __name__ == '__main__':
                     if not os.path.exists(Settings.Plots.SFPlotDir):
                         os.makedirs(Settings.Plots.SFPlotDir)
                     savefig_path = os.path.join(Settings.Plots.SFPlotDir, lbl + '.sf' + '.png')
-                drawer.drawDATA(SFDATA, title=u'Структурные функции', xlabel=u'sec.',
-                                ylabel=u'Кв. корень структ. ф-ции',
-                                labels=default.parameter.plot.labels.rus.BASIC_PLUS,
-                                colors=default.parameter.plot.colors.BASIC_PLUS,
+                drawer.drawDATA(SFDATA, title=u'Structural functions', xlabel=u'sec.',
+                                ylabel=u'sqrt(S), K',
+                                labels=default.parameter.plot.labels('en').basic_plus,
+                                colors=default.parameter.plot.colors.basic_plus,
                                 marker=True, timeformat='!s',
                                 savefig_path=savefig_path,
-                                axvlines=[default.parameter.struct_func.t25sec,
-                                          default.parameter.struct_func.t50sec, default.parameter.struct_func.t100sec,
-                                          default.parameter.struct_func.t150sec, default.parameter.struct_func.t200sec])
+                                axvlines=[default.parameter.struct_func.borland.t_sec(25),
+                                          default.parameter.struct_func.borland.t_sec(50),
+                                          default.parameter.struct_func.borland.t_sec(100),
+                                          default.parameter.struct_func.borland.t_sec(150),
+                                          default.parameter.struct_func.borland.t_sec(200)])
             if int(namespace.savereports):
                 if not os.path.exists(Settings.Reports.SFReportDir):
                     os.makedirs(Settings.Reports.SFReportDir)
@@ -500,9 +506,9 @@ if __name__ == '__main__':
                     if not os.path.exists(Settings.Plots.WeatherPlotDir):
                         os.makedirs(Settings.Plots.WeatherPlotDir)
                     savefig_path = os.path.join(Settings.Plots.WeatherPlotDir, lbl + '.weather' + '.png')
-                drawer.drawDATA(WeatherDATA, title=u'Погода', xlabel=u'hh:mm (время)', ylabel=u'Значения',
-                                labels=default.parameter.plot.labels.rus.WEATHER,
-                                colors=default.parameter.plot.colors.WEATHER,
+                drawer.drawDATA(WeatherDATA, title=u'Weather', xlabel=u'hh:mm (time)', ylabel=u'Values',
+                                labels=default.parameter.plot.labels('en').weather,
+                                colors=default.parameter.plot.colors.weather,
                                 linewidth=1.35, timeformat='hm',
                                 savefig_path=savefig_path)
             if int(namespace.savereports):
@@ -518,17 +524,17 @@ if __name__ == '__main__':
             C_alpha = turbulence.c_alpha(SFDATA, WeatherDATA4report)
             drawer.drawDATA(C_alpha, title=r'$C_{\alpha}$',
                             xlabel=u'sec.',
-                            ylabel=r'Значение',
-                            labels=default.parameter.plot.labels.BASIC_PLUS,
-                            colors=default.parameter.plot.colors.BASIC_PLUS,
+                            ylabel=r'Value',
+                            labels=default.parameter.plot.labels.basic_plus,
+                            colors=default.parameter.plot.colors.basic_plus,
                             timeformat='!s', marker=True
                             )
             C_alpha = turbulence.c_alpha(SFDATA, WeatherDATA4report, colm_ob_lim=False)
             drawer.drawDATA(C_alpha, title=r'$C_{\alpha}$',
                             xlabel=u'sec.',
-                            ylabel=r'Значение',
-                            labels=default.parameter.plot.labels.BASIC_PLUS,
-                            colors=default.parameter.plot.colors.BASIC_PLUS,
+                            ylabel=r'Value',
+                            labels=default.parameter.plot.labels.basic_plus,
+                            colors=default.parameter.plot.colors.basic_plus,
                             timeformat='!s'
                             )
 
@@ -546,24 +552,26 @@ if __name__ == '__main__':
                         os.makedirs(Settings.Plots.QWPlotDir)
                     savefig_path_q = os.path.join(Settings.Plots.QWPlotDir, lbl + '.q' + '.png')
                     savefig_path_w = os.path.join(Settings.Plots.QWPlotDir, lbl + '.w' + '.png')
-                # drawer.drawDATA(QDATA, title=u'Полная масса водяного пара', xlabel=u'hh:mm (время)', ylabel=u'г/см2',
-                #                 labels=default.parameter.plot.labels.rus.QW2,
-                #                 colors=default.parameter.plot.colors.QW2,
-                #                 linewidth=1.35, timeformat='hm',
-                #                 savefig_path=savefig_path_q)
-                # drawer.drawDATA(WDATA, title=u'Водозапас облаков', xlabel=u'hh:mm (время)', ylabel=u'кг/м2',
-                #                 labels=default.parameter.plot.labels.rus.QW2,
-                #                 colors=default.parameter.plot.colors.QW2,
-                #                 linewidth=1.35, timeformat='hm',
-                #                 savefig_path=savefig_path_w)
-                drawer.drawDATA(QDATA, title=u'Полная масса водяного пара', xlabel=u'hh:mm (время)',
-                                ylabel=r'г/см$^2$',
+                # drawer.drawDATA(QDATA, title=u'Total mass of water vapor', xlabel=u'hh:mm (time)',
+                #                                 ylabel=r'g/cm$^2$',
+                #                                 labels=default.parameter.plot.labels('en').qw2,
+                #                                 colors=default.parameter.plot.colors.qw2,
+                #                                 linewidth=1.35, timeformat='hm',
+                #                                 savefig_path=savefig_path_q)
+                # drawer.drawDATA(WDATA, title=u'Liquid water content in clouds', xlabel=u'hh:mm (time)',
+                #                                 ylabel=r'kg/m$^2$',
+                #                                 labels=default.parameter.plot.labels('en').qw2,
+                #                                 colors=default.parameter.plot.colors.qw2,
+                #                                 linewidth=1.35, timeformat='hm',
+                #                                 savefig_path=savefig_path_w)
+                drawer.drawDATA(QDATA, title=u'Total mass of water vapor', xlabel=u'hh:mm (time)',
+                                ylabel=r'g/cm$^2$',
                                 labels={'multifreq': 'Multifreq'},
                                 colors={'multifreq': 'darkblue'},
                                 linewidth=1.35, timeformat='hm',
                                 savefig_path=savefig_path_q)
-                drawer.drawDATA(WDATA, title=u'Водозапас облаков', xlabel=u'hh:mm (время)',
-                                ylabel=r'кг/м$^2$',
+                drawer.drawDATA(WDATA, title=u'Liquid water content in clouds', xlabel=u'hh:mm (time)',
+                                ylabel=r'kg/m$^2$',
                                 labels={'multifreq': 'Multifreq'},
                                 colors={'multifreq': 'crimson'},
                                 linewidth=1.35, timeformat='hm',

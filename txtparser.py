@@ -140,9 +140,9 @@ class TFile:
         return
 
     def shift(self):
-        ssize = len(self.DATA[default.parameter.freqs.ALL[0]])
-        msize = len(self.DATA[default.parameter.freqs.SHIFTED[0]])
-        s_arr = default.parameter.freqs.SHIFTED
+        ssize = len(self.DATA[default.parameter.freqs.all[0]])
+        msize = len(self.DATA[default.parameter.freqs.shifted[0]])
+        s_arr = default.parameter.freqs.shifted
         for f in s_arr:
             if not self.DATA[f]:
                 # print(f)
