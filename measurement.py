@@ -238,10 +238,10 @@ class Measurement:
                 tfile.sort_time()
             if outliers_elimination:
                 print('Устранение явных выбросов...\t')
-                tfile.outliers_elimination(threshold_percentage=None)
+                tfile.outliers_elimination()
             if upper_threshold_val:
                 print('Устранение значений выше порогового...\t')
-                tfile.upper_threshold_elimination(parameter.parsing.measurements.upper_threshold_val)
+                tfile.set_upp_threshold(parameter.parsing.measurements.upper_threshold_val)
 
             for freq in tfile.DATA.keys():
                 self.DATA[freq] += tfile.DATA[freq]

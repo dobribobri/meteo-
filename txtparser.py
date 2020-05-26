@@ -9,38 +9,33 @@ from __future__ import division
 from __future__ import print_function
 import re
 from switch import Switch
-from collections import defaultdict
 from termcolor import colored
 from borland.datetime import TDateTime
 import default
 import time
-import sys
-import numpy as np
 from interquartile import Eliminate
+from common import *
 
 
 class TFile:
     def __init__(self, path: str, mode: str = ''):
         self.mode = mode
+        if not mode:
+            self.mode = 'standard'
         self.path = path
-        self.DATA = defaultdict(list)
+        self.session = Session()
 
     @staticmethod
     def __parse_line(text: str):
-        l_data = re.split("[\t ]", re.sub("[\r\n]", '', text))
-        l_data = [elem for elem in l_data if elem]
-        return l_data
-
-    # def __file_not_empty(self, filePath: str):
-    #     return os.path.getsize(filePath) > 0
+        return [elem for elem in re.split("[\t ]", re.sub("[\r\n]", '', text)) if elem]
 
     def parse(self, shift=True, rm_zeros=True, sort_freqs=True, sort_time=False,
               outliers_elimination=False, upper_threshold_val: float = None):
-        print("Загрузка данных в оперативную память...\t", end='', flush=True)
+        print("Loading data from txt...\t", end='', flush=True)
         start_time = time.time()
         print('Current parser mode: ' + self.mode)
         with Switch(self.mode) as case:
-            if case(""):
+            if case("standard"):
                 # стандартный режим
                 t_file = open(self.path, "r", encoding='cp1251')
                 t_file.readline()
@@ -51,11 +46,12 @@ class TFile:
                         hh, mm, ss = l_data[1].split(':')
                         ms = l_data[2]
                         timestamp = TDateTime(YYYY, MM, DD, hh, mm, ss, ms).toDouble()
-                        self.DATA[float(l_data[5])/1000].append((timestamp, float(l_data[6])))
-                        self.DATA[float(l_data[7])/1000].append((timestamp, float(l_data[8])))
+                        self.session.add(float(l_data[5])/1000, Point(timestamp, float(l_data[6])))
+                        self.session.add(float(l_data[7])/1000, Point(timestamp, float(l_data[8])))
                     except ValueError:
                         continue
                 t_file.close()
+
             if case("DDMMYY"):
                 t_file = open(self.path, "r", encoding='cp1251')
                 t_file.readline()
@@ -67,198 +63,126 @@ class TFile:
                         hh, mm, ss = l_data[1].split(':')
                         ms = l_data[2]
                         timestamp = TDateTime(YYYY, MM, DD, hh, mm, ss, ms).toDouble()
-                        self.DATA[float(l_data[5])/1000].append((timestamp, float(l_data[6])))
-                        self.DATA[float(l_data[7])/1000].append((timestamp, float(l_data[8])))
+                        self.session.add(float(l_data[5]) / 1000, Point(timestamp, float(l_data[6])))
+                        self.session.add(float(l_data[7]) / 1000, Point(timestamp, float(l_data[8])))
                     except ValueError:
                         continue
                 t_file.close()
 
-            # if case("p"):
-            #     # по процессорному времени
-            #     t_file = open(self.path, "r")
-            #     t_file.readline()
-            #     for line in t_file:
-            #         l_data = TFile.__parse_line(line)
-            #         timestamp = float(l_data[3])
-            #         self.DATA[float(l_data[5])/1000].append((timestamp, float(l_data[6])))
-            #         self.DATA[float(l_data[7])/1000].append((timestamp, float(l_data[8])))
-            #     t_file.close()
+            if case("p"):
+                # по процессорному времени
+                t_file = open(self.path, "r")
+                t_file.readline()
+                for line in t_file:
+                    l_data = TFile.__parse_line(line)
+                    timestamp = float(l_data[3])
+                    self.session.add(float(l_data[5]) / 1000, Point(timestamp, float(l_data[6])))
+                    self.session.add(float(l_data[7]) / 1000, Point(timestamp, float(l_data[8])))
+                t_file.close()
 
-            # if case("g1"):
-            #     # режим гетеродин|1|x|
-            #     t_file = open(self.path, "r")
-            #     t_file.readline()
-            #     for line in t_file:
-            #         l_data = TFile.__parse_line(line)
-            #         YYYY, MM, DD = l_data[0].split('.')
-            #         hh, mm, ss = l_data[1].split(':')
-            #         ms = l_data[2]
-            #         timestamp = TDateTime(YYYY, MM, DD, hh, mm, ss, ms).toDouble()
-            #         self.DATA[float(l_data[4])/1000].append((timestamp, float(l_data[6])))
-            #     t_file.close()
+            if case("g1"):
+                # режим гетеродин|1|x|
+                t_file = open(self.path, "r")
+                t_file.readline()
+                for line in t_file:
+                    l_data = TFile.__parse_line(line)
+                    YYYY, MM, DD = l_data[0].split('.')
+                    hh, mm, ss = l_data[1].split(':')
+                    ms = l_data[2]
+                    timestamp = TDateTime(YYYY, MM, DD, hh, mm, ss, ms).toDouble()
+                    self.session.add(float(l_data[4])/1000, Point(timestamp, float(l_data[6])))
+                t_file.close()
 
-            # if case("g2"):
-            #     # режим гетеродин|x|1|
-            #     t_file = open(self.path, "r")
-            #     t_file.readline()
-            #     for line in t_file:
-            #         l_data = TFile.__parse_line(line)
-            #         YYYY, MM, DD = l_data[0].split('.')
-            #         hh, mm, ss = l_data[1].split(':')
-            #         ms = l_data[2]
-            #         timestamp = TDateTime(YYYY, MM, DD, hh, mm, ss, ms).toDouble()
-            #         self.DATA[float(l_data[4])/1000].append((timestamp, float(l_data[8])))
-            #     t_file.close()
+            if case("g2"):
+                # режим гетеродин|x|1|
+                t_file = open(self.path, "r")
+                t_file.readline()
+                for line in t_file:
+                    l_data = TFile.__parse_line(line)
+                    YYYY, MM, DD = l_data[0].split('.')
+                    hh, mm, ss = l_data[1].split(':')
+                    ms = l_data[2]
+                    timestamp = TDateTime(YYYY, MM, DD, hh, mm, ss, ms).toDouble()
+                    self.session.add(float(l_data[4]) / 1000, Point(timestamp, float(l_data[8])))
+                t_file.close()
 
         print('{:.3f} sec\t'.format(time.time() - start_time), end='')
         print('[' + colored('OK', 'green') + ']')
 
         if shift:
-            print('Устранение наложений...\t')
+            print('Overlay elimination...\t')
             self.shift()
 
         if rm_zeros:
-            print('Удаление нулей...\t')
-            self.remove_time_zeros()
-            self.remove_val_zeros()
+            print('Removing zeros...\t')
+            self.remove_zeros()
 
         if sort_freqs:
-            print('Сортировка по частотам...\t')
+            print('Frequency sorting...\t')
             self.sort_frequencies()
 
         if sort_time:
-            print('Сортировка по времени...\t')
+            print('Time sorting...\t')
             self.sort_time()
 
         if outliers_elimination:
-            print('Устранение явных выбросов...\t')
-            self.outliers_elimination(threshold_percentage=20)
+            print('Outliers elimination...\t')
+            self.outliers_elimination()
 
         if upper_threshold_val:
-            print('Устранение значений выше порогового...\t')
-            self.upper_threshold_elimination(upper_threshold_val)
-        return
+            print('Setting threshold...\t')
+            self.set_upp_threshold(upper_threshold_val)
 
     def shift(self):
-        ssize = len(self.DATA[default.parameter.freqs.all[0]])
-        msize = len(self.DATA[default.parameter.freqs.shifted[0]])
         s_arr = default.parameter.freqs.shifted
+        ssize = self.session.get_series(default.parameter.freqs.all[0]).length
+        msize = self.session.get_series(s_arr[0]).length
         for f in s_arr:
-            if not self.DATA[f]:
-                # print(f)
+            s = self.session.get_series(f)
+            if s.is_empty:
                 continue
-            l = len(self.DATA[f])
-            if l > 1.25 * ssize:
+            if s.length > 1.25 * ssize:
                 k = 0
-                av = []
-                for i in range(0, l-1, 2):
-                    t_i, x_i = self.DATA[f][i]
-                    t_i1, x_i1 = self.DATA[f][i+1]
-                    t = (t_i + t_i1) / 2
-                    x = (x_i + x_i1) / 2
-                    av.append((t, x))
+                data = []
+                for i in range(0, s.length - 1, 2):
+                    p = s.data[i]
+                    p.merge(s.data[i+1])
+                    data.append(p)
                     k += 1
-                self.DATA[f] = av
-                if k < msize: msize = k
-        return
+                self.session.replace(s.freq, data)
+                if k < msize:
+                    msize = k
 
     def remove_zeros(self):
-        data = defaultdict(list)
-        for freq in self.DATA.keys():
-            for time, val in self.DATA[freq]:
-                if (time != 0) and (val != 0):
-                    data[freq].append((time, val))
-                else:
-                    print(colored('Удаление единичного измерения. ' +
-                                  'Частота: {}\t Время {} (TDateTime)\t Значение {}'.format(
-                                      freq, time, val
-                                  ), 'red'))
-        self.DATA = data
-        return
+        self.session.remove_zeros(timeQ=True, valQ=True)
 
     def sort_frequencies(self):
-        data = defaultdict(list)
-        for freq in sorted(self.DATA.keys()):
-            data[freq] = self.DATA[freq]
-        self.DATA = data
-        return
+        self.session.sort()
 
     def remove_time_zeros(self):
-        data = defaultdict(list)
-        errors = 0
-        for freq in self.DATA.keys():
-            for time, val in self.DATA[freq]:
-                if time != 0:
-                    data[freq].append((time, val))
-                else:
-                    errors += 1
-        if errors:
-            print(colored('Единичных измерений с нулевым значением времени: {}'.format(errors), 'red'))
-        self.DATA = data
-        return
+        self.session.remove_zeros(timeQ=True, valQ=False)
 
     def remove_val_zeros(self):
-        data = defaultdict(list)
-        errors = 0
-        for freq in self.DATA.keys():
-            for time, val in self.DATA[freq]:
-                if val != 0:
-                    data[freq].append((time, val))
-                else:
-                    errors += 1
-        if errors:
-            print(colored('Единичных измерений с нулевым значением температуры: {}'.format(errors), 'red'))
-        self.DATA = data
-        return
+        self.session.remove_zeros(timeQ=False, valQ=True)
 
     def sort_time(self):
-        for freq in self.DATA.keys():
-            self.DATA[freq] = sorted(self.DATA[freq], key=lambda t: t[0])
-        return
+        self.session.time_sorting()
 
     def getDATA(self):
-        return self.DATA[:]
+        return self.session.to_defaultdict()
+
+    @property
+    def DATA(self):
+        return self.getDATA()
 
     def getTimeBounds(self):
-        min_t, max_t = sys.maxsize, 0
-        for key in self.DATA.keys():
-            for t, _ in self.DATA[key]:
-                if t < min_t:
-                    min_t = t
-                if t > max_t:
-                    max_t = t
-        return min_t, max_t
+        return self.session.get_time_bounds()
 
-    def outliers_elimination(self, threshold_percentage: float = None):
-        for freq in self.DATA.keys():
-            self.DATA[freq] = Eliminate.time_series(self.DATA[freq], threshold_percentage)
-        return
+    def outliers_elimination(self):
+        self.session.apply_to_series(Eliminate.time_series)
 
-    def upper_threshold_elimination(self, threshold: float):
-        DATA = defaultdict(list)
-        for freq in self.DATA.keys():
-            for t, v in self.DATA[freq]:
-                if v < threshold:
-                    DATA[freq].append((t, v))
-        self.DATA = DATA
-        return
+    def set_upp_threshold(self, threshold: float):
+        self.session.set_upper_threshold(threshold)
 
     def cutDATA(self, start_t: float, stop_t: float):
-        self.DATA = self.getCuttedDATA(start_t, stop_t)
-
-    def getCuttedDATA(self, start_t: float, stop_t: float):
-        newDATA = defaultdict(list)
-        for key in self.DATA.keys():
-            for t, v in self.DATA[key]:
-                if start_t <= t <= stop_t:
-                    newDATA[key].append((t, v))
-        return newDATA
-
-    def find_timestamp_closest_to(self, keyfreq: float, timestamp: float):
-        min_delta = sys.maxsize
-        t = 0
-        for time_, _ in self.DATA[keyfreq]:
-            if np.fabs(time_ - timestamp) < min_delta:
-                min_delta = np.fabs(time_ - timestamp)
-                t = time_
-        return t
+        self.session.cut(start_t, stop_t)

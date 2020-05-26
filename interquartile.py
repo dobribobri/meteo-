@@ -5,6 +5,8 @@
 # # 2019
 #
 
+from common import *
+
 
 class Eliminate:
 
@@ -16,26 +18,14 @@ class Eliminate:
         return m
 
     @staticmethod
-    def time_series(data: list, threshold_percentage: float = None):
-        s = []
-        for _, v in data:
-            s.append(v)
-        s = sorted(s)
-        q2 = Eliminate.__median(s)
-        q1 = Eliminate.__median([s[i] for i in range(0, len(s) // 2)])
-        q3 = Eliminate.__median([s[i] for i in range(len(s) // 2, len(s))])
+    def time_series(s: Series):
+        q1 = Eliminate.__median([s.data[i].val for i in range(0, len(s.data) // 2)])
+        q3 = Eliminate.__median([s.data[i].val for i in range(len(s.data) // 2, len(s.data))])
         shift = (q3 - q1) * 3
         l_lim = q1 - shift
         r_lim = q3 + shift
-        ndata = []
-        for t, v in data:
+        n = Series(s.freq)
+        for t, v in s.data:
             if l_lim < v < r_lim:
-                ndata.append((t, v))
-        if threshold_percentage:
-            m = Eliminate.__median([e for e in s if l_lim < e < r_lim])
-            p = q2 / m * 100 - 100
-            if p >= threshold_percentage:
-                return ndata
-            else:
-                return data
-        return ndata
+                n.add(Point(t, v))
+        return n
