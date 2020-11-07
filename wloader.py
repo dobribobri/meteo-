@@ -15,15 +15,15 @@ from termcolor import colored
 
 
 # Функция ищет все файлы с именем f во всех подкаталогах каталога catalog
-def find_files(catalog, f):
-    find_files_ = []
+def __find_files(catalog, f) -> list:
+    found_files = []
     for root, dirs, files in os.walk(catalog):
-        find_files_ += [os.path.join(root, name) for name in files if name == f]
-    return find_files_
+        found_files += [os.path.join(root, name) for name in files if name == f]
+    return found_files
 
 
-def load(MeteoData, base=Settings.meteoBaseDir):
-    print('Подождите...')
+def load(MeteoData, base=Settings.meteoBaseDir) -> None:
+    print('Wait...')
     # base = './w/'
     # MeteoData = ['meteo_1_2017-01-01_2019-09-01.csv', 'meteo_2_2017-01-01_2019-09-01.csv']
     if not os.path.exists(base):
@@ -54,15 +54,15 @@ def load(MeteoData, base=Settings.meteoBaseDir):
                         file.write(data[3] + ' ' + data[4] + ' ' + data[5] + ' ' +
                                    data[6] + ' ' + data[7] + ' ' + data[8] + '\n')
                     if not(k % 1000):
-                        sys.stdout.write("Обработано строк: %dк   \r" % (k//1000))
+                        sys.stdout.write("Strings processed: %dк   \r" % (k//1000))
                         sys.stdout.flush()
-            print('\nМетеостанция #{}\t'.format(i+1) + '[' + colored('OK', 'green') + ']')
-    # if os.path.exists(base):
-        print('Дополнительные операции...')
+            print('\nMeteostation #{}\t'.format(i+1) + '[' + colored('OK', 'green') + ']')
+
+        print('Additional operations...')
         deleted = 0
-        DataList = find_files(base, 'data')
+        DataList = __find_files(base, 'data')
         for datapath in DataList:
-            print('{}\tОбработка...'.format(datapath))
+            print('{}\tProcessing...'.format(datapath))
             DATA = defaultdict(list)
             with open(datapath, 'r') as datafile:
                 for row in datafile:
@@ -108,10 +108,9 @@ def load(MeteoData, base=Settings.meteoBaseDir):
                             deleted += len(DATA[time])
                             del DATA[time]
                         continue
-            # for time in DATA.keys():
-            #     print(DATA[time])
+
             if i:
-                print('Найдено повторяющихся временных меток: {}'.format(i))
+                print('Duplicated timestamps: {}'.format(i))
             with open(datapath, 'w') as datafile:
                 for time in sorted(DATA.keys()):
                     for data in DATA[time]:
@@ -119,6 +118,18 @@ def load(MeteoData, base=Settings.meteoBaseDir):
                                        data[3] + ' ' + data[4] + ' ' +
                                        data[5] + '\n')
             DATA.clear()
-        print('Всего пришлось полностью удалить {} временных меток'.format(deleted))
-    print('База метеорологических данных\t['+colored('OK', 'green')+']')
+        print('{} timestamps are completely removed'.format(deleted))
+    print('Weather database\t['+colored('OK', 'green')+']')
+    return
+
+
+def delete():
+    if os.path.exists(Settings.meteoBaseDir):
+        for root, dirs, files in os.walk(Settings.meteoBaseDir, topdown=False):
+            for name in files:
+                os.remove(os.path.join(root, name))
+            for name in dirs:
+                os.rmdir(os.path.join(root, name))
+        os.rmdir(Settings.meteoBaseDir)
+        print('Removing weather database\t' + '[' + colored('OK', 'green') + ']')
     return

@@ -5,48 +5,53 @@
 # # 2019
 #
 
-from collections import defaultdict
+import sys
 import math
-from thinner import thin_out
 import time
 from termcolor import colored
-from measurement import Measurement
-from default import parameter
+from session import *
+from settings import parameter
+from borland_datetime import TDateTime
 
 
-def structural_function(tbdata: list, thinning: int = 11, part: float = 1 / 20):
-    data = thin_out(tbdata, thinning)
-
-    nsize = len(data)
+def structural_function(tb: Series,
+                        thinning_sec: int = None,
+                        part: float = None,
+                        rightLimit: float = None) -> Series:
+    if thinning_sec is not None:
+        t_step = TDateTime(ss=thinning_sec).toDouble()
+        tb.thin_fast(t_step)
+    if part is None:
+        part = 1
+    if rightLimit is None:
+        rightLimit = sys.maxsize
 
     dt_avg = 0
-    for i in range(nsize - 1):
-        t0, _ = data[i]
-        t1, _ = data[i+1]
-        dt_avg += (t1 - t0)
-    dt_avg /= (nsize - 1)
+    for i in range(tb.length - 1):
+        dt_avg += (tb.data[i+1].time - tb.data[i].time)
+    dt_avg /= (tb.length - 1)
 
-    out = []
-    for m in range(int(part * nsize)):
-        Em = 0.
-        for k in range(nsize - m):
-            _, x1 = data[k + m]
-            _, x0 = data[k]
-            Em += (x1 - x0)**2
-        Em = math.sqrt(Em / (nsize - m))
-        if m * dt_avg < parameter.struct_func.rightShowLimit:
-            out.append((m * dt_avg, Em))
-
+    out = Series(key=tb.key)
+    for m in range(int(part * tb.length)):
+        if m * dt_avg > rightLimit:
+            break
+        I = 0.
+        for k in range(tb.length - m):
+            I += (tb.data[k+m].val - tb.data[k].val) ** 2
+        I = math.sqrt(I / (tb.length - m))
+        out.add(Point(m * dt_avg, I))
     return out
     
 
-def structural_functions(m: Measurement, thinning: int = 11, part: float = 1 / 20):
-    print("Расчёт структурных функций...\t", end='', flush=True)
+def structural_functions(MDATA: Session,
+                         thinning_sec: int = parameter.struct_func.thinning_sec,
+                         part: float = parameter.struct_func.part,
+                         rightShowLimit: float = parameter.struct_func.rightShowLimit) -> Session:
+    print("Structural functions calculation...\t", end='', flush=True)
     start_time = time.time()
-    data = defaultdict(list)
-    tbdata = []
-    for freq in m.DATA.keys():
-        data[freq] = structural_function(m.DATA[freq], thinning, part)
+    data = Session()
+    for freq in MDATA.keys:
+        data.add(structural_function(MDATA.get_series(freq), thinning_sec, part, rightShowLimit))
     print('{:.3f} sec\t'.format(time.time() - start_time), end='')
     print('[' + colored('OK', 'green') + ']')
     return data

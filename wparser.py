@@ -5,35 +5,38 @@
 # # 2019
 #
 
+from session import *
 import os
-import sys
 import re
-import numpy as np
-from collections import defaultdict
 from termcolor import colored
 from settings import Settings
-from borland.datetime import TDateTime
+from settings import parameter as p
+from borland_datetime import *
 
 
 class WFile:
-    def __init__(self, YYYY, MM, DD):
+    def __init__(self, YYYY: Union[int, str], MM: Union[int, str], DD: Union[int, str]):
         self.YYYY = str(YYYY)
         self.MM = '{0:0>2}'.format(MM)
         self.DD = '{0:0>2}'.format(DD)
         self.wdatapath = os.path.join(Settings.meteoBaseDir,
                                       self.YYYY, self.MM, self.DD, 'data')
-        self.WDATA = defaultdict(list)
-        self.swp_tbl_parsed = False
-        self.swp_tbl = defaultdict(list)
+        self.WDATA = Session()
+        self.swvp_tbl = WFile.load_swv_prop()
         self.min_t = TDateTime(YYYY, MM, DD).toDouble()
-        self.max_t = TDateTime(YYYY, MM, DD, hh=23, mm=59, ss=59, ms=999).toDouble()
+        self.max_t = TDateTime(YYYY, MM, DD, **END_OF_DAY).toDouble()
 
-    def parse(self):
+    @staticmethod
+    def fromDate(Date: date) -> 'WFile':
+        return WFile(Date.year, Date.month, Date.day)
+
+    def parse(self) -> None:
         if not os.path.exists(self.wdatapath):
-            print('Не удалось обнаружить файл с данными погоды\t'
+            print('No weather files found\t'
                   + '[' + colored('Error', 'red') + ']')
             return
         k = 0
+        self.WDATA.series.clear()
         with open(self.wdatapath, 'r') as wdatafile:
             for line in wdatafile:
                 l_data = re.split("[\t ]", re.sub("[\r\n]", '', line))
@@ -51,17 +54,26 @@ class WFile:
                     k += 1
                     continue
                 timestamp = TDateTime(self.YYYY, self.MM, self.DD, hh, mm).toDouble()
-                self.WDATA[timestamp] = [P, T, rho_rel, Wind, Rain_rt]
-        self.sort_time()
-        self.getTimeBounds()
-        print('{}.{}.{} - Загрузка данных погоды. Ошибок: '.format(self.YYYY, self.MM, self.DD)
-              + colored('{}\t'.format(k), 'red')
-              + '[' + colored('OK', 'green') + ']')
+                self.WDATA.add(p.weather.labels.T_C, Point(timestamp, T))
+                self.WDATA.add(p.weather.labels.T_K, Point(timestamp, T - 273.15))
+                self.WDATA.add(p.weather.labels.P_mm, Point(timestamp, P))
+                self.WDATA.add(p.weather.labels.P_hpa, Point(timestamp, P * 1.3332222))
+                self.WDATA.add(p.weather.labels.rho_rel, Point(timestamp, rho_rel))
+                rho_s = self.swvp_tbl[int(T)][0]
+                rho_abs = rho_s * rho_rel / 100
+                self.WDATA.add(p.weather.labels.rho_abs, Point(timestamp, rho_abs))
+                self.WDATA.add(p.weather.labels.Vwind, Point(timestamp, Wind))
+                self.WDATA.add(p.weather.labels.RainRt, Point(timestamp, Rain_rt))
+
+        self.min_t, self.max_t = self.WDATA.get_time_bounds()
+        # print('{}.{}.{} - Загрузка данных погоды. Ошибок: '.format(self.YYYY, self.MM, self.DD)
+        #       + colored('{}\t'.format(k), 'red')
+        #       + '[' + colored('OK', 'green') + ']')
         return
 
     @staticmethod
-    def load_swprop():
-        swvprc = defaultdict(list)
+    def load_swv_prop() -> defaultdict:
+        data = defaultdict(list)
         k = 0
         with open(Settings.swvapour_conf_path, 'r') as swvcfile:
             for line in swvcfile:
@@ -75,79 +87,31 @@ class WFile:
                 except IndexError or ValueError:
                     k += 1
                     continue
-                swvprc[T_s] = [rho_s, p_s_kPa, p_s_mmrtst]
-        print('Параметры насыщенного водяного пара\t'
-              + '[' + colored('OK', 'green') + ']')
-        return swvprc
+                data[T_s] = [rho_s, p_s_kPa, p_s_mmrtst]
+        # print('Параметры насыщенного водяного пара\t'
+        #       + '[' + colored('OK', 'green') + ']')
+        return data
 
-    def set_swp_tbl(self, saturated_water_vapour_properties_table):
-        self.swp_tbl = saturated_water_vapour_properties_table
-        self.swp_tbl_parsed = True
+    def cutData(self, start_t: float, stop_t: float) -> None:
+        self.WDATA.cut(start_t, stop_t)
 
-    def sort_time(self):
-        WDATA = defaultdict(list)
-        for timestamp in sorted(self.WDATA.keys()):
-            WDATA[timestamp] = self.WDATA[timestamp]
-        self.WDATA = WDATA
-        return
+    def getInfo(self, timestamp: float) -> list:
+        return self.WDATA.get_spectrum(timestamp)
 
-    def getTimeBounds(self):
-        key_list = sorted(self.WDATA.keys())
-        self.min_t, self.max_t = key_list[0], key_list[len(key_list) - 1]
-        return self.min_t, self.max_t
+    def Pressure(self, timestamp: float, dimension: str = p.weather.labels.P_mm) -> float:
+        return self.WDATA.get_series(key=dimension).get(timestamp)
 
-    def cutWDATA(self, start_t: float, stop_t: float):
-        self.WDATA = self.getCuttedWDATA(start_t, stop_t)
+    def Temperature(self, timestamp: float, dimension: str = p.weather.labels.T_C) -> float:
+        return self.WDATA.get_series(key=dimension).get(timestamp)
 
-    def getCuttedWDATA(self, start_t: float, stop_t: float):
-        newDATA = defaultdict(list)
-        for timestamp in self.WDATA.keys():
-            if start_t <= timestamp <= stop_t:
-                newDATA[timestamp] = self.WDATA[timestamp]
-        return newDATA
+    def Rho_rel(self, timestamp: float) -> float:
+        return self.WDATA.get_series(key=p.weather.labels.rho_rel).get(timestamp)
 
-    def find_timestamp_closest_to(self, timestamp: float):
-        if timestamp in self.WDATA.keys():
-            return timestamp
-        min_delta = sys.maxsize
-        t = 0
-        for key in self.WDATA.keys():
-            if np.fabs(key - timestamp) < min_delta:
-                min_delta = np.fabs(key - timestamp)
-                t = key
-        return t
+    def Rho_abs(self, timestamp: float) -> float:
+        return self.WDATA.get_series(key=p.weather.labels.rho_abs).get(timestamp)
 
-    def getInfo(self, timestamp: float):
-        key = self.find_timestamp_closest_to(timestamp)
-        return self.WDATA[key][:]
+    def WindV(self, timestamp: float) -> float:
+        return self.WDATA.get_series(key=p.weather.labels.Vwind).get(timestamp)
 
-    def Pressure(self, timestamp: float, dimension: str = 'mmrtst'):
-        key = self.find_timestamp_closest_to(timestamp)
-        if dimension == 'hpa':
-            return self.WDATA[key][0] * 1.3332222
-        return self.WDATA[key][0]
-
-    def Temperature(self, timestamp: float):
-        key = self.find_timestamp_closest_to(timestamp)
-        return self.WDATA[key][1]
-
-    def Rho_rel(self, timestamp: float):
-        key = self.find_timestamp_closest_to(timestamp)
-        return self.WDATA[key][2]
-
-    def WindV(self, timestamp: float):
-        key = self.find_timestamp_closest_to(timestamp)
-        return self.WDATA[key][3]
-
-    def RainRt(self, timestamp: float):
-        key = self.find_timestamp_closest_to(timestamp)
-        return self.WDATA[key][4]
-
-    def Rho_abs(self, timestamp: float):
-        if not self.swp_tbl_parsed:
-            self.swp_tbl = WFile.load_swprop()
-            self.swp_tbl_parsed = True
-        T = float(np.round(self.Temperature(timestamp)))
-        rho_s = self.swp_tbl[T][0]
-        rho_abs = rho_s * self.Rho_rel(timestamp) / 100
-        return rho_abs
+    def RainRt(self, timestamp: float) -> float:
+        return self.WDATA.get_series(key=p.weather.labels.RainRt).get(timestamp)

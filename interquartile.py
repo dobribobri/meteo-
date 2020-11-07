@@ -5,7 +5,7 @@
 # # 2019
 #
 
-from common import *
+from session import *
 
 
 class Eliminate:
@@ -18,13 +18,13 @@ class Eliminate:
         return m
 
     @staticmethod
-    def time_series(s: Series):
+    def time_series(s: Series) -> Series:
         q1 = Eliminate.__median([s.data[i].val for i in range(0, len(s.data) // 2)])
         q3 = Eliminate.__median([s.data[i].val for i in range(len(s.data) // 2, len(s.data))])
         shift = (q3 - q1) * 3
         l_lim = q1 - shift
         r_lim = q3 + shift
-        n = Series(s.freq)
+        n = Series(s.key)
         for t, v in s.data:
             if l_lim < v < r_lim:
                 n.add(Point(t, v))

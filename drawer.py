@@ -5,16 +5,14 @@
 # # 2019
 #
 
+from session import *
 from matplotlib import pyplot as plt
-from borland.datetime import Double2TDateTime
-import sys
+from borland_datetime import Double2TDateTime
 import numpy as np
-# from matplotlib.ticker import FormatStrFormatter
 from termcolor import colored
 from matplotlib import rc
 rc('font', **{'family': 'serif'})
 rc('text', usetex=True)
-rc('text.latex', unicode=True)
 rc('text.latex', preamble=r"\usepackage[T2A]{fontenc}")
 rc('text.latex', preamble=r"\usepackage[utf8]{inputenc}")
 rc('text.latex', preamble=r"\usepackage[russian]{babel}")
@@ -25,71 +23,83 @@ class Drawer:
         self.k = 0
         self.ax = None
 
-    def drawDATA(self, DATA, title='', xlabel='', ylabel='',
-                 labels=None, colors=None, linewidth=None,
-                 timeformat='hms+', marker=False,
-                 savefig_path='', axvlines=None, linestyles=None):
+    def draw(self, DATA: Session,
+             title: str = '',
+             xlabel: str = '', ylabel: str = '',
+             labels: dict = None,
+             colors: dict = None,
+             linewidth: float = None,
+             timeformat: str = 'hms+',
+             marker: bool = False,
+             savefig_path: str = None,
+             axvlines: list = None,
+             linestyles: dict = None,
+             x_ticks_step: float = None) -> None:
         if axvlines is None:
             axvlines = []
+
         plt.ion()
         self.k += 1
-        print(colored('График #{} - {} ...'.format(self.k, title), 'blue'))
+        print(colored('Plot #{} - {} ...'.format(self.k, title), 'blue'))
         plt.figure(self.k)
         self.ax = plt.gca()
         self.ax.set_title(title, fontsize=11)
         self.ax.set_xlabel(xlabel, fontsize=10, fontweight='bold')
         self.ax.xaxis.set_label_coords(0.5, 0.04)
         self.ax.set_ylabel(ylabel, fontsize=11, rotation=90, fontweight='bold')
-        min_t, max_t = sys.maxsize, 0
-        # ax.xaxis.set_major_formatter(FormatStrFormatter('%0.1f'))
+        min_t, max_t = DATA.get_time_bounds()
 
-        for key in DATA.keys():
+        for key in DATA.keys:
+            w = linewidth
+            m = marker
 
-            T, V = [], []
-            for t, v in DATA[key]:
-                T.append(t)
-                V.append(v)
-                if t < min_t:
-                    min_t = t
-                if t > max_t:
-                    max_t = t
-
-            lst = ''
             try:
-                l, c, w, m = labels[key], colors[key], linewidth, marker
-                try:
-                    lst = linestyles[key]
-                except TypeError:
-                    pass
+                l = labels[key]
             except KeyError:
                 continue
+            except TypeError:
+                l = str(key)
 
-            self.__plot(T, V, l, c, w, m, lst)
+            try:
+                c = colors[key]
+            except KeyError:
+                continue
+            except TypeError:
+                c = 'black'
 
+            try:
+                s = linestyles[key]
+            except KeyError:
+                continue
+            except TypeError:
+                s = ''
+
+            self.__plot(DATA.get_timestamps(key),
+                        DATA.get_values(key),
+                        l, c, w, m, s)
             plt.draw()
             plt.gcf().canvas.flush_events()
 
         for x in axvlines:
             plt.axvline(x=x, linewidth=0.5, linestyle=':', color='black')
 
-        x_ticks_step = (max_t - min_t) / 10
-        x_ticks_pos = [t for t in np.arange(min_t, max_t + x_ticks_step, x_ticks_step, dtype=float)]
-
-        x_ticks_labels = [Double2TDateTime(t).strTime(timeformat)
-                          for t in np.arange(min_t, max_t + x_ticks_step, x_ticks_step, dtype=float)]
-        if timeformat == '!s':
-            x_ticks_labels = [Double2TDateTime(t).strSeconds()
-                              for t in np.arange(min_t, max_t + x_ticks_step, x_ticks_step, dtype=float)]
+        if not x_ticks_step:
+            x_ticks_step = (max_t - min_t) / 10
+        x_ticks_pos, x_ticks_labels = [], []
+        for t in np.arange(min_t, max_t + x_ticks_step, x_ticks_step, dtype=float):
+            x_ticks_pos.append(t)
+            DT = Double2TDateTime(t)
+            if timeformat == '!s':
+                x_ticks_labels.append(DT.strSeconds())
+            else:
+                x_ticks_labels.append(DT.strTime(timeformat))
 
         plt.xticks(x_ticks_pos, x_ticks_labels, rotation=50, fontsize=10)
 
-        self.ax.legend(loc='best',
-                       # bbox_to_anchor=(0.7, 0.4),
-                       # frameon=False
-                       )
+        self.ax.legend(loc='best')
 
         plt.ioff()
-        if savefig_path:
+        if savefig_path is not None:
             plt.savefig(savefig_path, dpi=600)
         return
 

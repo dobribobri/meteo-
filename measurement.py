@@ -5,144 +5,115 @@
 # # 2019
 #
 
-from datetime import datetime, timedelta, date, time
-from settings import Settings
-import os
-import re
-import ftplib
-from termcolor import colored
-from pyunpack import Archive
+from session import *
+from borland_datetime import *
 import binaryparser  # C++
-from collections import defaultdict
+from datetime import timedelta
+from settings import Settings, parameter
 from txtparser import TFile
-from borland.datetime import TDateTime
+from pyunpack import Archive
+import regex as re
+import ftplib
+import os
 import sys
-from interquartile import Eliminate
-from default import parameter
+from termcolor import colored
 
 
 class Measurement:
     @staticmethod
-    def __exist_local(_mlbl: str, mode: str = 't'):
+    def exist_local(mlbl: str, mode: str = 't') -> bool:
         if mode == 't':
-            return os.path.exists(os.path.join(Settings.tfdataDir, _mlbl + '.txt'))
+            return os.path.exists(os.path.join(Settings.tfdataDir, mlbl + '.txt'))
         if mode == 'r':
-            return os.path.exists(os.path.join(Settings.bfdataDir, _mlbl + '.rar'))
+            return os.path.exists(os.path.join(Settings.bfdataDir, mlbl + '.rar'))
         if mode == 'd':
-            return os.path.exists(os.path.join(Settings.bfdataDir, _mlbl + '.dat'))
+            return os.path.exists(os.path.join(Settings.bfdataDir, mlbl + '.dat'))
         return False
 
     @staticmethod
-    def construct_ftp_path(_mlbl: str):
+    def construct_ftp_path(mlbl: str) -> str:
         year_path = ''
         try:
-            year_path = Settings.Server.year_path[int(_mlbl[5:9])]
+            year_path = Settings.Server.year_path[int(mlbl[5:9])]
         except KeyError:
-            print('Нет информации о {} годе\t'.format(_mlbl[5:9]) + '[' + colored('Error', 'red') + ']')
+            print('No info at {} year\t'.format(mlbl[5:9]) + '[' + colored('Error', 'red') + ']')
             exit(2007)
-        ftp_path_ = os.path.join(year_path, _mlbl + '.rar')
-        print('Путь к данным на сервере: {}'.format(ftp_path_))
-        return ftp_path_
+        ftp_path = os.path.join(year_path, mlbl + '.rar')
+        print('Path to data (server): {}'.format(ftp_path))
+        return ftp_path
 
     @staticmethod
-    def decompose_mlbl(_mlbl: str, _to_int=False):
+    def decompose(mlbl: str) -> datetime:
         # P22M_2017_08_01__05-09-34 - шаблон метки измерительного сеанса
         stY, stM, stD, sth, stm, sts = \
-            _mlbl[5:9], _mlbl[10:12], _mlbl[13:15], \
-            _mlbl[17:19], _mlbl[20:22], _mlbl[23:25]
-        if _to_int:
-            return int(stY), int(stM), int(stD), int(sth), int(stm), int(sts)
-        return stY, stM, stD, sth, stm, sts
+            int(mlbl[5:9]), int(mlbl[10:12]), int(mlbl[13:15]), \
+            int(mlbl[17:19]), int(mlbl[20:22]), int(mlbl[23:25])
+        return datetime(stY, stM, stD, sth, stm, sts)
 
     @staticmethod
-    def find_calibr(_mlbl: str):
+    def find_calibr(mlbl: str) -> str:
         # calibr23_19_03_05_К.p22m - шаблон названия калибровочного файла (год|месяц|день)
-        cflist = os.listdir(Settings.cfdataDir)
-        _k = dict()
-        for i in range(len(cflist)):
-            rem = cflist[i]
-            cflist[i] = re.sub(r'_К', '', cflist[i])  # "К" написано кириллицей
-            if cflist[i] != rem:
-                _k[cflist[i]] = 1
-            else:
-                _k[cflist[i]] = 0
-        stY, stM, stD, *_ = Measurement.decompose_mlbl(_mlbl)
+        DT = Measurement.decompose(mlbl)
+        stY, stM, stD = DT.strftime("%Y"), DT.strftime("%m"), DT.strftime("%d")
         assumed = Settings.calibrPrefix + '_' + \
                   stY[2:] + '_' + stM + '_' + stD + '.' + Settings.calibrPostfix
-        # print(assumed)
-        cflist = sorted(cflist)
-        # print(cflist)
-        if assumed <= cflist[0]:
-            if _k[cflist[0]]:
-                return os.path.join(Settings.cfdataDir, re.sub('.p22m', r'_К.p22m', cflist[0]))
-            else:
-                return os.path.join(Settings.cfdataDir, cflist[0])
+        cflist = sorted(os.listdir(Settings.cfdataDir))
         for i in range(len(cflist) - 1, -1, -1):
-            # print('{} > {} -- {}'.format(assumed, cflist[i], assumed > cflist[i]))
-            if assumed > cflist[i]:
-                if _k[cflist[i]]:
-                    return os.path.join(Settings.cfdataDir, re.sub('.p22m', r'_К.p22m', cflist[i]))
-                else:
-                    return os.path.join(Settings.cfdataDir, cflist[i])
-        return ''
+            if assumed > re.sub('_К', '', cflist[i]):    # "К" написано кириллицей
+                return os.path.join(Settings.cfdataDir, cflist[i])
+        return os.path.join(Settings.cfdataDir, cflist[0])
 
-    @staticmethod
-    def __daterange(start_date, stop_date):
-        for n in range(int((stop_date - start_date).days) + 1):
-            yield start_date + timedelta(n)
+    def __init__(self, start: datetime = datetime(2017, 8, 1, 5, 9, 34),
+                 stop: datetime = None, tfparsemode: str = '',
+                 erase_rar=False, erase_dat=True, erase_txt=False):
 
-    def __init__(self, datetime_start: datetime = datetime(2017, 8, 1, 5, 9, 34),
-                 datetime_stop: datetime = None, erase=False, tfparsemode = '', noconnection=False):
-        print(noconnection)
-        global ftp
         if not os.path.exists(Settings.bfdataDir):
             os.makedirs(Settings.bfdataDir)
         if not os.path.exists(Settings.tfdataDir):
             os.makedirs(Settings.tfdataDir)
 
-        self.DATA = defaultdict(list)
-        self.start_date = date(datetime_start.year, datetime_start.month, datetime_start.day)
-        self.start_t = TDateTime(datetime_start.year, datetime_start.month, datetime_start.day,
-                                 datetime_start.hour, datetime_start.minute, datetime_start.second).toDouble()
-        if datetime_stop:
-            self.stop_date = date(datetime_stop.year, datetime_stop.month, datetime_stop.day)
-            self.stop_t = TDateTime(datetime_stop.year, datetime_stop.month, datetime_stop.day,
-                                    datetime_stop.hour, datetime_stop.minute, datetime_stop.second).toDouble()
-        else:
-            self.stop_date = self.start_date
-            self.stop_t = TDateTime(datetime_start.year, datetime_start.month, datetime_start.day,
-                                    hh=23, mm=59, ss=59, ms=999).toDouble()
-        # подключение к серверу баз данных
-        if not noconnection:
-            ftp = ftplib.FTP(Settings.Server.IP)
-            ftp.login(Settings.Server.login, Settings.Server.password)
-            print('Подключение к серверу\t' + '[' + colored('OK', 'green') + ']')
-        mlbls = []
-        if noconnection:
-            mlbls.append(Measurement.construct_mlbl_(datetime_start))
-        for d in Measurement.__daterange(self.start_date, self.stop_date):
+        if not stop:
+            stop = start + timedelta(hours=3)
+        start = TDateTime.fromPythonDateTime(start)
+        stop = TDateTime.fromPythonDateTime(stop)
+        self.start_t = start.toDouble()
+        self.stop_t = stop.toDouble()
+
+        ftp = ftplib.FTP(Settings.Server.IP)
+        ftp.login(Settings.Server.login, Settings.Server.password)
+        print('Connected to server\t' + '[' + colored('OK', 'green') + ']')
+        data = []
+        for d in daterange(start, stop):
             ls = []
-            if not noconnection:
-                ftp.cwd(Settings.Server.year_path[d.year])
-                ftp.dir(ls.append)
+            ftp.cwd(Settings.Server.year_path[d.year])
+            ftp.dir(ls.append)
             for item in ls:
-                arr = re.split(' ', item)
-                p = str(arr[len(arr) - 1])
+                a = re.split(' ', item)
+                p = str(a[-1])
                 if (p.find('.rar') != -1) and \
                         (p.find(
                             d.strftime(Settings.radiometerPrefix + '_%Y_%m_%d__')
                         ) != -1):
-                    _, _, _, h, _, _ = Measurement.decompose_mlbl(p, _to_int=True)
-                    if h + 4 < datetime_start.hour or \
-                            (datetime_stop is not None and h - 4 > datetime_stop.hour):
-                        continue
-                    mlbls.append(re.sub('.rar', '', p))
-        if datetime_stop is None:
-            mlbls = [mlbl for mlbl in mlbls if mlbl == Measurement.construct_mlbl_(datetime_start)]
+                    m_start = Measurement.decompose(p)
+                    m_start_t = TDateTime.fromPythonDateTime(m_start).toDouble()
+                    data.append((re.sub('.rar', '', p), m_start_t))
+        data = sorted(data, key=lambda tup: tup[1])
+        i_start, i_stop = 0, len(data) - 1
+        for i in range(len(data)-1):
+            _, t = data[i+1]
+            if self.start_t < t:
+                i_start = i
+                break
+        for i in range(len(data)-1, -1, -1):
+            _, t = data[i]
+            if t < self.stop_t:
+                i_stop = i
+                break
+
         self.tfiles = []
-        print(mlbls)
-        for mlbl in mlbls:
-            print('Метка измерительного сеанса: {}'.format(mlbl))
+        for i in range(i_start, i_stop + 1):
+            mlbl, _ = data[i]
+            print('Measurement session label: {}'.format(mlbl))
             ftp = ftplib.FTP(Settings.Server.IP)
             ftp.login(Settings.Server.login, Settings.Server.password)
             # путь до сжатого бинарного файла в локальном хранилище
@@ -152,9 +123,9 @@ class Measurement:
             # путь до текстового файла измерений в локальном хранилище
             txtfile_local_path = os.path.join(Settings.tfdataDir, mlbl + '.txt')
 
-            exist_txt = Measurement.__exist_local(mlbl, mode='t')
-            exist_dat = Measurement.__exist_local(mlbl, mode='d')
-            exist_rar = Measurement.__exist_local(mlbl, mode='r')
+            exist_txt = Measurement.exist_local(mlbl, mode='t')
+            exist_dat = Measurement.exist_local(mlbl, mode='d')
+            exist_rar = Measurement.exist_local(mlbl, mode='r')
 
             if not exist_txt and not exist_dat and not exist_rar:
                 # В локальном хранилище ничего не найдено. Загрузка данных с сервера
@@ -164,13 +135,13 @@ class Measurement:
                 try:
                     with open(rarfile_local_path, 'wb') as rarfile:
                         ftp.retrbinary('RETR ' + ftp_path, rarfile.write)
-                except ftplib.all_errors:   # !!
-                    print('Ошибка FTP. Не удалось загрузить файл\t' + '[' + colored('Error', 'red') + ']')
+                except ftplib.all_errors:
+                    print('FTP error\t' + '[' + colored('Error', 'red') + ']')
                     # Удалим обрывок файла, если не удалось загрузить
                     if os.path.exists(rarfile_local_path):
                         os.remove(rarfile_local_path)
                     exit(4)
-                print('Загрузка файлов с сервера\t' + '[' + colored('OK', 'green') + ']')
+                print('Uploading files from server\t' + '[' + colored('OK', 'green') + ']')
                 exist_rar = True
 
             if not exist_txt and not exist_dat and exist_rar:
@@ -184,7 +155,7 @@ class Measurement:
                     os.rmdir(os.path.join(Settings.bfdataDir, Settings.radiometerPrefix))
                 # Проверяем, что распаковка удалась
                 if not os.path.exists(datfile_local_path):
-                    print('Ошибка распаковщика\t' + '[' + colored('Error', 'red') + ']')
+                    print('Unpacking error\t' + '[' + colored('Error', 'red') + ']')
                     exit(5)
                 else:
                     exist_dat = True
@@ -193,73 +164,74 @@ class Measurement:
                 # В локальном хранилище найден .dat-файл - распакованный бинарник
                 # Найдём нужный калибровочный файл
                 calibrfile_path = Measurement.find_calibr(mlbl)
-                print('Ближайший по дате файл калибровки: {}'.format(calibrfile_path))
+                print('Closest calibration file: {}'.format(calibrfile_path))
 
                 # Распарсим бинарник в txt-файл и одновременно проведём (первичную) калибровку
                 binaryparser.parse(datfile_local_path, calibrfile_path, txtfile_local_path)
 
-                # удалим распакованный .dat-файл (весит много)
-                if os.path.exists(datfile_local_path):
-                    os.remove(datfile_local_path)
+            if exist_rar and erase_rar:
+                os.remove(rarfile_local_path)
+            if exist_dat and erase_dat:
+                os.remove(datfile_local_path)
 
             print(tfparsemode)
             tfile = TFile(txtfile_local_path, mode=tfparsemode)
-            tfile.parse(shift=True, rm_zeros=False, sort_freqs=False, sort_time=False,
-                        outliers_elimination=False, upper_threshold_val=None)
             self.tfiles.append(tfile)
+        self.erase_txt = erase_txt
+        self.MDATA = self.getData()
 
-            if int(erase):
-                if os.path.exists(rarfile_local_path):
-                    os.remove(rarfile_local_path)
-                if os.path.exists(datfile_local_path):
-                    os.remove(datfile_local_path)
-                if os.path.exists(txtfile_local_path):
-                    os.remove(txtfile_local_path)
-                print('Очищено.')
-
-    def getDATA(self, rm_zeros=parameter.parsing.measurements.rm_zeros,
-                sort_freqs=parameter.parsing.measurements.sort_freqs,
-                sort_time=parameter.parsing.measurements.sort_time,
-                outliers_elimination=parameter.parsing.measurements.outliers_elimination,
-                upper_threshold_val=parameter.parsing.measurements.upper_threshold_val):
-        self.DATA.clear()
+    def getData(self, frequencies: list = None) -> Session:
+        MDATA = Session()
         for tfile in self.tfiles:
-            tfile.cutDATA(start_t=self.start_t, stop_t=self.stop_t)
+            tfile.parse(True,
+                        parameter.parsing.measurements.rm_zeros,
+                        parameter.parsing.measurements.sort_freqs,
+                        parameter.parsing.measurements.sort_time,
+                        parameter.parsing.measurements.outliers_elimination,
+                        parameter.parsing.measurements.upper_threshold_val)
+            tfile.cutData(self.start_t, self.stop_t)
 
-            if rm_zeros:
-                print('Удаление нулей...\t')
-                tfile.remove_time_zeros()
-                tfile.remove_val_zeros()
-            if sort_freqs:
-                print('Сортировка по частотам...\t')
-                tfile.sort_frequencies()
-            if sort_time:
-                print('Сортировка по времени...\t')
-                tfile.sort_time()
-            if outliers_elimination:
-                print('Устранение явных выбросов...\t')
-                tfile.outliers_elimination()
-            if upper_threshold_val:
-                print('Устранение значений выше порогового...\t')
-                tfile.set_upp_threshold(parameter.parsing.measurements.upper_threshold_val)
+            if not frequencies:
+                for s in tfile.session.series:
+                    MDATA.add(s)
+            else:
+                for freq in frequencies:
+                    MDATA.add(tfile.session.get_series(freq))
 
-            for freq in tfile.DATA.keys():
-                self.DATA[freq] += tfile.DATA[freq]
-
-        self.getTimeBounds()
-        return self.DATA
-
-    def getTimeBounds(self):
-        min_t, max_t = sys.maxsize, 0
-        for key in self.DATA.keys():
-            for t, _ in self.DATA[key]:
-                if t < min_t:
-                    min_t = t
-                if t > max_t:
-                    max_t = t
-        return min_t, max_t
+            if self.erase_txt:
+                os.remove(tfile.path)
+        return MDATA
 
     @staticmethod
-    def construct_mlbl_(_datetime: datetime):
-        _mlbl = _datetime.strftime(Settings.radiometerPrefix + '_%Y_%m_%d__%H-%M-%S')
-        return _mlbl
+    def update_calibr() -> None:
+        ftp = ftplib.FTP(Settings.Server.IP)
+        ftp.login(Settings.Server.login, Settings.Server.password)
+        ftp.cwd(Settings.Server.calibrRoot)
+        cflist = []
+        try:
+            cflist = ftp.nlst()
+        except:
+            print('FTP error\t' + '[' + colored('Error', 'red') + ']')
+            exit(550)
+        cflist = [cfname for cfname in cflist if cfname.find(Settings.calibrPrefix) != -1]
+        if os.path.exists(Settings.cfdataDir):
+            for root, dirs, files in os.walk(Settings.cfdataDir, topdown=False):
+                for name in files:
+                    os.remove(os.path.join(root, name))
+                for name in dirs:
+                    os.rmdir(os.path.join(root, name))
+                os.rmdir(Settings.cfdataDir)
+            print('Removing calibration files\t' + '[' + colored('OK', 'green') + ']')
+        os.makedirs(Settings.cfdataDir)
+        for cfname in cflist:
+            cfile_path = os.path.join(Settings.Server.calibrRoot, cfname)
+            cfile_local_path = os.path.join(Settings.cfdataDir, cfname.encode(ftp.encoding).decode('utf8'))
+            try:
+                with open(cfile_local_path, 'wb') as cfile:
+                    ftp.retrbinary('RETR ' + cfile_path, cfile.write)
+            except:
+                print('FTP error\t' + cfname + '\t[' + colored('Error', 'red') + ']')
+                if os.path.exists(cfile_local_path):
+                    os.remove(cfile_local_path)
+                exit(551)
+        print('Calibration database update\t' + '[' + colored('OK', 'green') + ']')

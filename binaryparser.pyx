@@ -14,5 +14,5 @@ cdef extern from "c_binaryparser.cpp":
 
 def parse(fPath, cPath, outPath):
     c_parse(fPath.encode(), cPath.encode(), outPath.encode())
-    print('Записано: {}\t'.format(outPath) + '[' + colored('OK', 'green') + ']')
+    print('Ready: {}\t'.format(outPath) + '[' + colored('OK', 'green') + ']')
     return

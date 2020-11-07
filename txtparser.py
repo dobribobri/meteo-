@@ -5,16 +5,14 @@
 # # 2019
 #
 
-from __future__ import division
-from __future__ import print_function
+from session import *
 import re
 from switch import Switch
 from termcolor import colored
-from borland.datetime import TDateTime
-import default
+from borland_datetime import TDateTime
+import settings
 import time
 from interquartile import Eliminate
-from common import *
 
 
 class TFile:
@@ -26,11 +24,11 @@ class TFile:
         self.session = Session()
 
     @staticmethod
-    def __parse_line(text: str):
+    def __parse_line(text: str) -> list:
         return [elem for elem in re.split("[\t ]", re.sub("[\r\n]", '', text)) if elem]
 
     def parse(self, shift=True, rm_zeros=True, sort_freqs=True, sort_time=False,
-              outliers_elimination=False, upper_threshold_val: float = None):
+              outliers_elimination=False, upper_threshold_val: float = None) -> None:
         print("Loading data from txt...\t", end='', flush=True)
         start_time = time.time()
         print('Current parser mode: ' + self.mode)
@@ -63,8 +61,8 @@ class TFile:
                         hh, mm, ss = l_data[1].split(':')
                         ms = l_data[2]
                         timestamp = TDateTime(YYYY, MM, DD, hh, mm, ss, ms).toDouble()
-                        self.session.add(float(l_data[5]) / 1000, Point(timestamp, float(l_data[6])))
-                        self.session.add(float(l_data[7]) / 1000, Point(timestamp, float(l_data[8])))
+                        self.session.add(float(l_data[5])/1000, Point(timestamp, float(l_data[6])))
+                        self.session.add(float(l_data[7])/1000, Point(timestamp, float(l_data[8])))
                     except ValueError:
                         continue
                 t_file.close()
@@ -76,8 +74,8 @@ class TFile:
                 for line in t_file:
                     l_data = TFile.__parse_line(line)
                     timestamp = float(l_data[3])
-                    self.session.add(float(l_data[5]) / 1000, Point(timestamp, float(l_data[6])))
-                    self.session.add(float(l_data[7]) / 1000, Point(timestamp, float(l_data[8])))
+                    self.session.add(float(l_data[5])/1000, Point(timestamp, float(l_data[6])))
+                    self.session.add(float(l_data[7])/1000, Point(timestamp, float(l_data[8])))
                 t_file.close()
 
             if case("g1"):
@@ -103,7 +101,7 @@ class TFile:
                     hh, mm, ss = l_data[1].split(':')
                     ms = l_data[2]
                     timestamp = TDateTime(YYYY, MM, DD, hh, mm, ss, ms).toDouble()
-                    self.session.add(float(l_data[4]) / 1000, Point(timestamp, float(l_data[8])))
+                    self.session.add(float(l_data[4])/1000, Point(timestamp, float(l_data[8])))
                 t_file.close()
 
         print('{:.3f} sec\t'.format(time.time() - start_time), end='')
@@ -133,9 +131,9 @@ class TFile:
             print('Setting threshold...\t')
             self.set_upp_threshold(upper_threshold_val)
 
-    def shift(self):
-        s_arr = default.parameter.freqs.shifted
-        ssize = self.session.get_series(default.parameter.freqs.all[0]).length
+    def shift(self) -> None:
+        s_arr = settings.parameter.freqs.shifted
+        ssize = self.session.get_series(settings.parameter.freqs.all[0]).length
         msize = self.session.get_series(s_arr[0]).length
         for f in s_arr:
             s = self.session.get_series(f)
@@ -149,40 +147,36 @@ class TFile:
                     p.merge(s.data[i+1])
                     data.append(p)
                     k += 1
-                self.session.replace(s.freq, data)
+                self.session.replace(s.key, data)
                 if k < msize:
                     msize = k
 
-    def remove_zeros(self):
+    def remove_zeros(self) -> None:
         self.session.remove_zeros(timeQ=True, valQ=True)
 
-    def sort_frequencies(self):
+    def sort_frequencies(self) -> None:
         self.session.sort()
 
-    def remove_time_zeros(self):
+    def remove_time_zeros(self) -> None:
         self.session.remove_zeros(timeQ=True, valQ=False)
 
-    def remove_val_zeros(self):
+    def remove_val_zeros(self) -> None:
         self.session.remove_zeros(timeQ=False, valQ=True)
 
-    def sort_time(self):
+    def sort_time(self) -> None:
         self.session.time_sorting()
 
-    def getDATA(self):
-        return self.session.to_defaultdict()
+    def getData(self) -> Session:
+        return self.session
 
-    @property
-    def DATA(self):
-        return self.getDATA()
-
-    def getTimeBounds(self):
+    def getTimeBounds(self) -> Tuple[float, float]:
         return self.session.get_time_bounds()
 
-    def outliers_elimination(self):
+    def outliers_elimination(self) -> None:
         self.session.apply_to_series(Eliminate.time_series)
 
-    def set_upp_threshold(self, threshold: float):
+    def set_upp_threshold(self, threshold: float) -> None:
         self.session.set_upper_threshold(threshold)
 
-    def cutDATA(self, start_t: float, stop_t: float):
+    def cutData(self, start_t: float, stop_t: float) -> None:
         self.session.cut(start_t, stop_t)

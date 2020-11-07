@@ -72,7 +72,7 @@ void c_parse(std::string fPath, std::string cPath, std::string outPath) {
     CTime[31*ns+nf] = 0.;
     cpa[31*ns+nf] = 0;
 
-    std::cout << "Чтение данных..." << std::endl;
+    std::cout << "Reading data..." << std::endl;
 
     while(fread(&num, 4, 1, fd)) {
         fread(&nw, 4, 1, fd);
@@ -125,7 +125,7 @@ void c_parse(std::string fPath, std::string cPath, std::string outPath) {
     int Calibr_N_Freq, Calibr_N_Temp;
     char str[1000];
 
-    std::cout << "Чтение файла калибровки..." << std::endl;
+    std::cout << "Reading calibration file..." << std::endl;
 
     fc = fopen(fn_cal.c_str(), "rt");
 
@@ -165,7 +165,7 @@ void c_parse(std::string fPath, std::string cPath, std::string outPath) {
 
 
 
-    std::cout << "Вычисление калибровочных коэффициентов..." << std::endl;
+    std::cout << "Calibration coeffs computation..." << std::endl;
 
     for(i = 0; i < 31; i++) {
         OutIhot =(CalibrVal[0][i][0]-Nulls[0]);
@@ -187,7 +187,7 @@ void c_parse(std::string fPath, std::string cPath, std::string outPath) {
 
 
 
-    std::cout << "Выполнение калибровки..." << std::endl;
+    std::cout << "Doing calibration..." << std::endl;
 
     for(i = 0; i < ns; i++)
         for(j = 0; j < 31; j++) {
@@ -199,7 +199,7 @@ void c_parse(std::string fPath, std::string cPath, std::string outPath) {
 
     std::string fn_out = outPath;
 
-    std::cout << "Сохранение файлов..." << std::endl;
+    std::cout << "Saving files..." << std::endl;
                 
     fo=fopen(fn_out.c_str(), "w");
 
