@@ -5,7 +5,7 @@
 # # 2019
 #
 
-from session import *
+from session import Series, Point
 
 
 class Eliminate:

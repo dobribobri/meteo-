@@ -5,13 +5,16 @@
 # # 2019
 #
 
-from session import *
+from collections import defaultdict
+from typing import Union
+from session import Session, Point
 import os
 import re
+from datetime import date
 from termcolor import colored
 from settings import Settings
 from settings import parameter as p
-from borland_datetime import *
+from borland_datetime import TDateTime, END_OF_DAY
 
 
 class WFile:

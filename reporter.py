@@ -15,12 +15,8 @@ class Reports:
                   f_path: str, append: bool = False,
                   apply_to_timestamp=lambda t: t) -> None:
         print('Making report...')
-        session.cut(*session.get_time_bounds())
-        avg_len = int(sum(s.length for s in session.series) / len(session.keys))
-        timestamps = np.zeros(avg_len, dtype=float)
-        for s in session.series:
-            timestamps += np.array(s.get_timestamps()[:avg_len])
-        timestamps /= len(session.keys)
+        session.box()
+        timestamps = session.get_timestamps_averaged()
         mode = 'w'
         if append:
             mode = 'a'

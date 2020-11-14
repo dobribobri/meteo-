@@ -5,12 +5,13 @@
 # # 2019
 #
 
+from pythonlangutil.overload import Overload, signature
 import os
-from session import *
-from borland_datetime import *
+from datetime import datetime
+from session import Session
+from borland_datetime import TDateTime, END_OF_DAY, daterange
 from wparser import WFile
 from settings import parameter as p
-from datetime import datetime
 
 
 class Weather:
@@ -22,9 +23,9 @@ class Weather:
         self.stop_t = stop_t
         self.wfiles = []
 
-        self.start = Double2TDateTime(start_t)
+        self.start = TDateTime.fromDouble(start_t)
         if stop_t:
-            self.stop = Double2TDateTime(stop_t)
+            self.stop = TDateTime.fromDouble(stop_t)
         else:
             self.stop = self.start.copy()
             self.stop.set(**END_OF_DAY)
@@ -35,7 +36,7 @@ class Weather:
                 continue
             self.wfiles.append(wfile)
 
-        self.WDATA = Session()
+        self.DATA = Session()
 
     @__init__.overload
     @signature('TDateTime', 'TDateTime')
@@ -56,7 +57,7 @@ class Weather:
         self.__init__(start_d, stop_d)
 
     def apply(self, formatstr: str = 'tkmphrw*') -> None:
-        self.WDATA = self.getData(formatstr)
+        self.DATA = self.getData(formatstr)
 
     def getData(self, formatstr: str = 'tkmphrw*') -> Session:
         """
@@ -92,25 +93,25 @@ class Weather:
         return WDATA
 
     def cutData(self, start_t: float, stop_t: float) -> None:
-        self.WDATA.cut(start_t, stop_t)
+        self.DATA.cut(start_t, stop_t)
 
     def getInfo(self, timestamp: float) -> list:
-        return self.WDATA.get_spectrum(timestamp)
+        return self.DATA.get_spectrum(timestamp)
 
     def Pressure(self, timestamp: float, dimension: str = p.weather.labels.P_mm) -> float:
-        return self.WDATA.get_series(key=dimension).get(timestamp)
+        return self.DATA.get_series(key=dimension).get(timestamp).val
 
     def Temperature(self, timestamp: float, dimension: str = p.weather.labels.T_C) -> float:
-        return self.WDATA.get_series(key=dimension).get(timestamp)
+        return self.DATA.get_series(key=dimension).get(timestamp).val
 
     def Rho_rel(self, timestamp: float) -> float:
-        return self.WDATA.get_series(key=p.weather.labels.rho_rel).get(timestamp)
+        return self.DATA.get_series(key=p.weather.labels.rho_rel).get(timestamp).val
 
     def Rho_abs(self, timestamp: float) -> float:
-        return self.WDATA.get_series(key=p.weather.labels.rho_abs).get(timestamp)
+        return self.DATA.get_series(key=p.weather.labels.rho_abs).get(timestamp).val
 
     def WindV(self, timestamp: float) -> float:
-        return self.WDATA.get_series(key=p.weather.labels.Vwind).get(timestamp)
+        return self.DATA.get_series(key=p.weather.labels.Vwind).get(timestamp).val
 
     def RainRt(self, timestamp: float) -> float:
-        return self.WDATA.get_series(key=p.weather.labels.RainRt).get(timestamp)
+        return self.DATA.get_series(key=p.weather.labels.RainRt).get(timestamp).val

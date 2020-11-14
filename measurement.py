@@ -5,17 +5,16 @@
 # # 2019
 #
 
-from session import *
-from borland_datetime import *
+from session import Session
+from borland_datetime import TDateTime, daterange
 import binaryparser  # C++
-from datetime import timedelta
+from datetime import datetime, timedelta
 from settings import Settings, parameter
 from txtparser import TFile
 from pyunpack import Archive
 import regex as re
 import ftplib
 import os
-import sys
 from termcolor import colored
 
 
@@ -55,8 +54,7 @@ class Measurement:
         # calibr23_19_03_05_К.p22m - шаблон названия калибровочного файла (год|месяц|день)
         DT = Measurement.decompose(mlbl)
         stY, stM, stD = DT.strftime("%Y"), DT.strftime("%m"), DT.strftime("%d")
-        assumed = Settings.calibrPrefix + '_' + \
-                  stY[2:] + '_' + stM + '_' + stD + '.' + Settings.calibrPostfix
+        assumed = Settings.calibrPrefix + '_' + stY[2:] + '_' + stM + '_' + stD + '.' + Settings.calibrPostfix
         cflist = sorted(os.listdir(Settings.cfdataDir))
         for i in range(len(cflist) - 1, -1, -1):
             if assumed > re.sub('_К', '', cflist[i]):    # "К" написано кириллицей
@@ -178,7 +176,7 @@ class Measurement:
             tfile = TFile(txtfile_local_path, mode=tfparsemode)
             self.tfiles.append(tfile)
         self.erase_txt = erase_txt
-        self.MDATA = self.getData()
+        self.DATA = self.getData()
 
     def getData(self, frequencies: list = None) -> Session:
         MDATA = Session()
@@ -210,7 +208,7 @@ class Measurement:
         cflist = []
         try:
             cflist = ftp.nlst()
-        except:
+        except ftplib.all_errors:
             print('FTP error\t' + '[' + colored('Error', 'red') + ']')
             exit(550)
         cflist = [cfname for cfname in cflist if cfname.find(Settings.calibrPrefix) != -1]
@@ -229,7 +227,7 @@ class Measurement:
             try:
                 with open(cfile_local_path, 'wb') as cfile:
                     ftp.retrbinary('RETR ' + cfile_path, cfile.write)
-            except:
+            except ftplib.all_errors:
                 print('FTP error\t' + cfname + '\t[' + colored('Error', 'red') + ']')
                 if os.path.exists(cfile_local_path):
                     os.remove(cfile_local_path)

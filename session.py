@@ -5,11 +5,8 @@
 # # 2019
 #
 
-from __future__ import division
-from __future__ import print_function
-from typing import Iterable, Tuple, Union, Any
+from typing import Iterable, Tuple, Any
 from pythonlangutil.overload import Overload, signature
-from collections import defaultdict
 import sys
 
 
@@ -24,6 +21,9 @@ class Point:
 
     def to_tuple(self) -> tuple:
         return self.time, self.val
+
+    def to_list(self) -> list:
+        return [*self.to_tuple()]
 
 
 class Series:
@@ -106,32 +106,37 @@ class Series:
         self.data = [p for p in self.data if t_start <= p.time <= t_stop]
 
     def thin(self, t_step: float) -> None:
-        t, t_stop = self.get_time_bounds()
-        data = []
-        while t < t_stop:
-            data.append(self.get(t))
-            t += t_step
-        self.data = data
+        if t_step:
+            t, t_stop = self.get_time_bounds()
+            data = []
+            while t < t_stop:
+                data.append(self.get(t))
+                t += t_step
+            self.data = data
 
     def thin_fast(self, t_step: float) -> None:
-        t_start, t_stop = self.get_time_bounds()
-        n = (t_stop - t_start) // t_step
-        jL, data = 0, []
-        for i in range(int(n)):
-            time = t_start + i * t_step
-            val, k = 0, 0
-            for j in range(jL, len(self.data)):
-                t, v = self.data[j].to_tuple()
-                if t > time + t_step / 2:
-                    jL = j
-                    break
-                val += v
-                k += 1
-            if val:
-                data.append(Point(time, val / k))
-            else:
-                pass
-        self.data = data
+        if t_step:
+            t_start, t_stop = self.get_time_bounds()
+            n = (t_stop - t_start) // t_step
+            jL, data = 0, []
+            for i in range(int(n)):
+                time = t_start + i * t_step
+                val, k = 0, 0
+                for j in range(jL, len(self.data)):
+                    t, v = self.data[j].to_tuple()
+                    if t > time + t_step / 2:
+                        jL = j
+                        break
+                    val += v
+                    k += 1
+                if val:
+                    data.append(Point(time, val / k))
+                else:
+                    pass
+            self.data = data
+
+    def __len__(self):
+        return self.length
 
     def __str__(self):
         if self.length > 3:
@@ -197,16 +202,6 @@ class Session:
     def add(self, key: str, point: Point) -> None:
         self.__add_point_on_key(key, point)
 
-    @add.overload
-    @signature('float', 'list')
-    def add(self, key: float, data: list) -> None:
-        self.add(Series(key, data))
-
-    @add.overload
-    @signature('str', 'list')
-    def add(self, key: str, data: list) -> None:
-        self.add(Series(key, data))
-
     def get_series(self, key: Any) -> Series:
         for s in self.series:
             if s.key == key:
@@ -218,6 +213,14 @@ class Session:
 
     def get_timestamps(self, key: Any) -> list:
         return self.get_series(key).get_timestamps()
+
+    def get_timestamps_averaged(self) -> list:
+        mlen = self.min_len
+        timestamps = [0] * mlen
+        for s in self.series:
+            ts = sorted(s.get_timestamps())
+            timestamps = [timestamps[i] + ts[i] for i in range(mlen)]
+        return [timestamps[i] / len(self.series) for i in range(mlen)]
 
     def get_spectrum(self, timestamp: float) -> list:
         spectrum = []
@@ -258,12 +261,20 @@ class Session:
         for i in range(self.series_count):
             self.series[i].sort_t()
 
-    def to_defaultdict(self) -> defaultdict:
-        d = defaultdict(list)
+    def to_dict(self) -> dict:
+        d = {}
         for s in self.series:
             for p in s.data:
                 d[s.key].append((p.time, p.val))
         return d
+
+    @property
+    def t_start(self) -> float:
+        return min([s.t_start for s in self.series])
+
+    @property
+    def t_stop(self) -> float:
+        return max([s.t_stop for s in self.series])
 
     @property
     def t_inf(self) -> float:
@@ -287,6 +298,40 @@ class Session:
     def cut(self, t_start: float, t_stop: float) -> None:
         for i in range(self.series_count):
             self.series[i].cut(t_start, t_stop)
+
+    def thin(self, t_step: float) -> None:
+        for s in self.series:
+            s.thin(t_step)
+
+    def thin_fast(self, t_step: float) -> None:
+        for s in self.series:
+            s.thin_fast(t_step)
+
+    @property
+    def min_len(self) -> int:
+        return min([s.length for s in self.series])
+
+    @property
+    def max_len(self) -> int:
+        return max([s.length for s in self.series])
+
+    @property
+    def avg_len(self) -> int:
+        return sum([s.length for s in self.series]) / len(self.series)
+
+    def box(self) -> None:
+        self.cut(*self.get_time_bounds())
+
+    def select(self, keys: list) -> 'Session':
+        out = Session()
+        for key in keys:
+            if key not in self.keys:
+                raise KeyError
+            out.add(self.get_series(key))
+        return out
+
+    def copy(self) -> 'Session':
+        return self.select(self.keys)
 
     def __str__(self):
         s = ''

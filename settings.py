@@ -240,10 +240,11 @@ class parameter:
         Tobl: float = -2  # cels
 
     class work:
-        theta: float = (math.pi / 180) * 51  # rad
+        # theta: float = (math.pi / 180) * 51  # rad
+        theta: float = 0.
 
     class struct_func:
-        thinning_sec: int = 11
+        t_step: float = None
         part: float = 1./20.
 
         rightShowLimit: float = 500    # sec

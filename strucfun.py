@@ -9,22 +9,16 @@ import sys
 import math
 import time
 from termcolor import colored
-from session import *
+from session import Session, Series, Point
 from settings import parameter
 from borland_datetime import TDateTime
 
 
 def structural_function(tb: Series,
-                        thinning_sec: int = None,
-                        part: float = None,
-                        rightLimit: float = None) -> Series:
-    if thinning_sec is not None:
-        t_step = TDateTime(ss=thinning_sec).toDouble()
-        tb.thin_fast(t_step)
-    if part is None:
-        part = 1
-    if rightLimit is None:
-        rightLimit = sys.maxsize
+                        t_step: float = None,
+                        part: float = 1,
+                        rightLimit: float = sys.maxsize) -> Series:
+    tb.thin_fast(t_step)
 
     dt_avg = 0
     for i in range(tb.length - 1):
@@ -44,14 +38,14 @@ def structural_function(tb: Series,
     
 
 def structural_functions(MDATA: Session,
-                         thinning_sec: int = parameter.struct_func.thinning_sec,
+                         t_step: float = parameter.struct_func.t_step,
                          part: float = parameter.struct_func.part,
                          rightShowLimit: float = parameter.struct_func.rightShowLimit) -> Session:
     print("Structural functions calculation...\t", end='', flush=True)
     start_time = time.time()
     data = Session()
     for freq in MDATA.keys:
-        data.add(structural_function(MDATA.get_series(freq), thinning_sec, part, rightShowLimit))
+        data.add(structural_function(MDATA.get_series(freq), t_step, part, rightShowLimit))
     print('{:.3f} sec\t'.format(time.time() - start_time), end='')
     print('[' + colored('OK', 'green') + ']')
     return data

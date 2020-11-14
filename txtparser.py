@@ -5,13 +5,14 @@
 # # 2019
 #
 
-from session import *
+from session import Session, Point
+from typing import Tuple
 import re
+import time
+import settings
 from switch import Switch
 from termcolor import colored
 from borland_datetime import TDateTime
-import settings
-import time
 from interquartile import Eliminate
 
 

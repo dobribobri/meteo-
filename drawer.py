@@ -5,7 +5,7 @@
 # # 2019
 #
 
-from session import *
+from session import Session
 from matplotlib import pyplot as plt
 from borland_datetime import Double2TDateTime
 import numpy as np
@@ -126,4 +126,3 @@ class Drawer:
         plt.pause(interval)
         plt.close()
         return
-

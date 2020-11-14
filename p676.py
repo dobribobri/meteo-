@@ -5,8 +5,6 @@
 # # 2019
 #
 
-from __future__ import division
-from __future__ import print_function
 from typing import Tuple
 import math
 import scipy.integrate as Integrate
@@ -32,7 +30,7 @@ class Model:
     @staticmethod
     def H1(frequency: float) -> float:
         """
-        :return: характеристическая высота поглощения в кислороде
+        :return: характеристическая высота поглощения в кислороде (км)
         """
         f = frequency
         if f < 50:
@@ -46,7 +44,7 @@ class Model:
         """
         :param frequency: частота излучения
         :param rainQ: дождь?
-        :return: характеристическая высота поглощения в водяном паре
+        :return: характеристическая высота поглощения в водяном паре (км)
         """
         f = frequency
         Hw = 1.6
@@ -132,22 +130,28 @@ class Model:
         """
         return -math.log((brT - Tavg) / (-Tavg))
 
-    def Q(self, Hrho: float = 1.8) -> float:
+    @staticmethod
+    def Q(rho0: float = 7.5, Hrho: float = 1.8) -> float:
         """
-        :param Hrho: характеристическая высота распределения водяного пара (км)
         :return: полная масса водяного пара в столбе атмосферы как интеграл от rho0*exp(-H/H_характ.) [г/см2]
         """
-        func = lambda h: self.rho * math.exp(- h / (Hrho * 1000))
+        func = lambda h: rho0 * math.exp(- h / (Hrho * 1000))
         Q = Integrate.quad(func, 0, 100000)
         return Q[0] / 10000
 
     def krho(self, frequency: float) -> float:
         """
-        Учитывает угол наблюдения.
+        Учитывает угол наблюдения. В неперах.
 
-        :return: весовая функция k_rho (водяной пар)
+        :return: весовая функция k_rho (водяной пар).
         """
-        return self.tauRho_theory(frequency) / self.Q()
+        # Q = Model.Q(rho0=self.rho, Hrho=Model.H2(frequency, self.rainQ))
+        Q = Model.Q(rho0=self.rho, Hrho=1.8)
+        # Q = Model.Q(rho0=10, Hrho=Model.H2(frequency, self.rainQ))
+        # Q = Model.Q(rho0=10, Hrho=1.8)
+        # Q = 1.575
+        # print(frequency, Q)
+        return self.tauRho_theory(frequency) / Q
 
     @staticmethod
     def epsilon(T: float, Sw: float) -> Tuple[float, float, float]:
@@ -168,16 +172,16 @@ class Model:
 
     def kw(self, frequency: float, tcl: float) -> float:
         """
-        Не учитывает угол наблюдения.
+        Не учитывает угол наблюдения. В неперах.
 
         :param frequency: частота излучения
         :param tcl: средняя эффективная температура облака
-        :return: весовая функция k_w (вода в жидкокапельной фазе)
+        :return: весовая функция k_w (вода в жидкокапельной фазе).
         """
         lamda = self.c / (frequency * 10 ** 9) * 100  # перевод в [cm]
         epsO, epsS, lambdaS = Model.epsilon(tcl, 0.)
         y = lambdaS / lamda
-        return (1/self.dB2np) * 3 * 0.6*math.pi / lamda * (epsS - epsO) * y / (
+        return 3 * 0.6*math.pi / lamda * (epsS - epsO) * y / (
                 (epsS + 2) ** 2 + (epsO + 2) ** 2 * y * y)
 
     def setParameters(self, temperature: float = None,

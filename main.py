@@ -18,6 +18,7 @@ from drawer import Drawer
 from strucfun import structural_functions
 from weather import Weather
 from reporter import Reports
+from qw import MoistureContent
 
 
 def createArgParser():
@@ -82,8 +83,11 @@ def createArgParser():
     p.add_argument('--nosf', action='store_true', default=False,
                    help="Do not calculate structural functions.")
 
-    p.add_argument('--noweather', action='store_true', default='0',
+    p.add_argument('--noweather', action='store_true', default=False,
                    help="Do not load weather data.")
+
+    p.add_argument('--noqw', action='store_true', default=False,
+                   help="No moisture content analysis.")
 
     p.add_argument('--closeplots', action='store_true', default=False,
                    help="Show and close plots immediately.")
@@ -127,7 +131,7 @@ if __name__ == '__main__':
         wloader.delete()
 
     wloader.load(
-        re.split(' ', re.sub("[\[\]',]", '', ns.meteo)),
+        re.split(' ', re.sub(r"[\[\]',]", '', ns.meteo)),
         base=Settings.meteoBaseDir
     )
 
@@ -157,8 +161,7 @@ if __name__ == '__main__':
     if int(ns.savereports):
         ns.tbreport, ns.sfreport, ns.wreport = True, True, True
 
-    lbl = start.strftime(Settings.radiometerPrefix + '_%Y%m%d%H%M%S-') + \
-          stop.strftime('%Y%m%d%H%M%S')
+    lbl = start.strftime(Settings.radiometerPrefix + '_%Y%m%d%H%M%S-') + stop.strftime('%Y%m%d%H%M%S')
     if int(ns.sameday):
         lbl = start.strftime('%Y%m%d-%H%M-') + stop.strftime('%H%M')
 
@@ -181,7 +184,7 @@ if __name__ == '__main__':
         savefig_path = os.path.join(Settings.Plots.TbPlotDir, lbl + '.tb' + '.png')
 
     if not int(ns.noplots):
-        d.draw(m.MDATA,
+        d.draw(m.DATA,
                title=u'Brightness temperatures',
                xlabel=u'time (hh:mm)', ylabel=u'Brightness temperature, K',
                labels=parameter.plot.labels('en').basic_plus,
@@ -196,10 +199,10 @@ if __name__ == '__main__':
         if not os.path.exists(Settings.Reports.TbReportDir):
             os.makedirs(Settings.Reports.TbReportDir)
         report_path = os.path.join(Settings.Reports.TbReportDir, lbl + '.tb' + '.txt')
-        Reports.makeTable(m.MDATA, report_path)
+        Reports.makeTable(m.DATA, report_path)
 
     if not int(ns.nosf):
-        SFData = structural_functions(m.MDATA)
+        SFData = structural_functions(m.DATA)
 
         savefig_path = None
         if int(ns.saveplots):  # Сохранять графики
@@ -232,9 +235,7 @@ if __name__ == '__main__':
                               apply_to_timestamp=lambda t: TDateTime.fromDouble(t).strSeconds())
 
     if not int(ns.noweather):
-        # Получение данных о погоде
         w = Weather(start, stop)
-        w.apply(formatstr='trw*')
 
         savefig_path = None
         if int(ns.saveplots):  # Сохранять графики
@@ -243,12 +244,15 @@ if __name__ == '__main__':
             savefig_path = os.path.join(Settings.Plots.WeatherPlotDir, lbl + '.weather' + '.png')
 
         if not int(ns.noplots):
-            d.draw(w.WDATA,
+            w.apply(formatstr='trw*')
+            d.draw(w.DATA,
                    title=u'Weather', xlabel=u'hh:mm (time)', ylabel=u'Values',
                    labels=parameter.plot.labels('en').weather,
                    colors=parameter.plot.colors.weather,
                    linewidth=1.35, timeformat='hm',
                    savefig_path=savefig_path)
+
+        w.apply()
 
         if int(ns.wreport):
             if not os.path.exists(Settings.Reports.ReportRoot):
@@ -256,7 +260,53 @@ if __name__ == '__main__':
             if not os.path.exists(Settings.Reports.WeatherReportDir):
                 os.makedirs(Settings.Reports.WeatherReportDir)
             report_path = os.path.join(Settings.Reports.WeatherReportDir, lbl + '.weather' + '.txt')
-            Reports.makeTable(w.getData(), report_path)
+            Reports.makeTable(w.DATA, report_path)
+
+        if not int(ns.noqw):
+            c = MoistureContent(measurement=m, weather=w)
+            # Q, W = c.DualFrequency(parameter.freqs.qw2_freq_pairs)
+            Hrho = 1.8
+            Q = c.tpwv_standard(Hrho=Hrho, smooth=20)
+            W = c.liquidWater_spectral(t_step=TDateTime(ss=220).toDouble())
+
+            savefig_path_q, savefig_path_w = None, None
+            if int(ns.saveplots):
+                if not os.path.exists(Settings.Plots.QWPlotDir):
+                    os.makedirs(Settings.Plots.QWPlotDir)
+                savefig_path_q = os.path.join(Settings.Plots.QWPlotDir, lbl + '.q' + '.png')
+                savefig_path_w = os.path.join(Settings.Plots.QWPlotDir, lbl + '.w' + '.png')
+
+            if not int(ns.noplots):
+                # d.draw(Q,
+                #        title=u'Total mass of water vapor', xlabel=u'hh:mm (time)',
+                #        ylabel=r'g/cm$^2$',
+                #        labels=parameter.plot.labels('en').qw2,
+                #        colors=parameter.plot.colors.qw2,
+                #        linewidth=1.35, timeformat='hm',
+                #        savefig_path=savefig_path_q)
+                # d.draw(W,
+                #        title=u'Liquid water content in clouds', xlabel=u'hh:mm (time)',
+                #        ylabel=r'kg/m$^2$',
+                #        labels=parameter.plot.labels('en').qw2,
+                #        colors=parameter.plot.colors.qw2,
+                #        linewidth=1.35, timeformat='hm',
+                #        savefig_path=savefig_path_w)
+                d.draw(Q,
+                       title=u'Total mass of water vapor', xlabel=u'hh:mm (time)',
+                       ylabel=r'g/cm$^2$',
+                       labels={'q':
+                               r'$Q = \int_{0}^{\infty} \rho_0\cdot\exp(-h/H_{\rho}) \,dh,~H_{\rho} = $' +
+                               ' {}km'.format(Hrho)},
+                       colors={'q': 'black'},
+                       linewidth=1.35, timeformat='hm',
+                       savefig_path=savefig_path_q)
+                d.draw(W,
+                       title=u'Liquid water content in clouds', xlabel=u'hh:mm (time)',
+                       ylabel=r'kg/m$^2$',
+                       labels={'w': 'Spectral method'},
+                       colors={'w': 'black'},
+                       linewidth=1.35, timeformat='hm',
+                       savefig_path=savefig_path_w)
 
     if not int(ns.closeplots):
         d.show()
