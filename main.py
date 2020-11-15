@@ -119,6 +119,9 @@ def createArgParser():
     p.add_argument('--txtparsermode', default='',
                    help="Set TXT-parser special mode.")
 
+    p.add_argument('--rangespec', default='',
+                   help="Specify interval of measurements with string of \'YYYY-MM-DD : hh:mm - hh:mm\' format")
+
     return p
 
 
@@ -138,6 +141,16 @@ if __name__ == '__main__':
     # Подготовка базы калибровки
     if int(ns.update_calibr) or not(os.path.exists(Settings.cfdataDir)):
         Measurement.update_calibr()
+
+    if ns.rangespec:
+        ns.range, ns.sameday = True, True
+        ns.year = ns.rangespec[0:4]
+        ns.month = ns.rangespec[5:7]
+        ns.day = ns.rangespec[8:10]
+        ns.hh = ns.rangespec[13:15]
+        ns.mm = ns.rangespec[16:18]
+        ns.H1 = ns.rangespec[21:23]
+        ns.m1 = ns.rangespec[24:26]
 
     start, stop = None, None
     try:
@@ -265,9 +278,11 @@ if __name__ == '__main__':
         if not int(ns.noqw):
             c = MoistureContent(measurement=m, weather=w)
             # Q, W = c.DualFrequency(parameter.freqs.qw2_freq_pairs)
-            Hrho = 1.8
-            Q = c.tpwv_standard(Hrho=Hrho, smooth=20)
-            W = c.liquidWater_spectral(t_step=TDateTime(ss=220).toDouble())
+            # Hrho = 1.8
+            # Q = c.tpwv_standard(Hrho=Hrho, smooth=20)
+            # W = c.liquidWater_spectral(t_step=TDateTime(ss=220).toDouble())
+            Q, W = c.Spectral(t_step=TDateTime(ss=11).toDouble())
+            # Q, W = c.Spectral(t_step=TDateTime(ss=220).toDouble())
 
             savefig_path_q, savefig_path_w = None, None
             if int(ns.saveplots):
@@ -291,12 +306,28 @@ if __name__ == '__main__':
                 #        colors=parameter.plot.colors.qw2,
                 #        linewidth=1.35, timeformat='hm',
                 #        savefig_path=savefig_path_w)
+
+                # d.draw(Q,
+                #        title=u'Total mass of water vapor', xlabel=u'hh:mm (time)',
+                #        ylabel=r'g/cm$^2$',
+                #        labels={'q':
+                #                r'$Q = \int_{0}^{\infty} \rho_0\cdot\exp(-h/H_{\rho}) \,dh,~H_{\rho} = $' +
+                #                ' {}km'.format(Hrho)},
+                #        colors={'q': 'black'},
+                #        linewidth=1.35, timeformat='hm',
+                #        savefig_path=savefig_path_q)
+                # d.draw(W,
+                #        title=u'Liquid water content in clouds', xlabel=u'hh:mm (time)',
+                #        ylabel=r'kg/m$^2$',
+                #        labels={'w': 'Spectral method'},
+                #        colors={'w': 'black'},
+                #        linewidth=1.35, timeformat='hm',
+                #        savefig_path=savefig_path_w)
+
                 d.draw(Q,
                        title=u'Total mass of water vapor', xlabel=u'hh:mm (time)',
                        ylabel=r'g/cm$^2$',
-                       labels={'q':
-                               r'$Q = \int_{0}^{\infty} \rho_0\cdot\exp(-h/H_{\rho}) \,dh,~H_{\rho} = $' +
-                               ' {}km'.format(Hrho)},
+                       labels={'q': 'Spectral method'},
                        colors={'q': 'black'},
                        linewidth=1.35, timeformat='hm',
                        savefig_path=savefig_path_q)

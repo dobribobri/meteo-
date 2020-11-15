@@ -6,7 +6,6 @@
 #
 
 from session import *
-import numpy as np
 
 
 class Reports:

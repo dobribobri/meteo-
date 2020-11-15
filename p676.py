@@ -136,6 +136,7 @@ class Model:
         :return: полная масса водяного пара в столбе атмосферы как интеграл от rho0*exp(-H/H_характ.) [г/см2]
         """
         func = lambda h: rho0 * math.exp(- h / (Hrho * 1000))
+        # noinspection PyTypeChecker
         Q = Integrate.quad(func, 0, 100000)
         return Q[0] / 10000
 
