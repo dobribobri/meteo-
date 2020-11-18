@@ -13,15 +13,17 @@ from p676 import Model
 from session import Session, Series, Point
 import numpy as np
 import math
-import sys
-from matplotlib import pyplot as plt
-from borland_datetime import TDateTime
-from matplotlib import rc
-rc('font', **{'family': 'serif'})
-rc('text', usetex=True)
-rc('text.latex', preamble=r"\usepackage[T2A]{fontenc}")
-rc('text.latex', preamble=r"\usepackage[utf8]{inputenc}")
-rc('text.latex', preamble=r"\usepackage[russian]{babel}")
+
+
+# import sys
+# from matplotlib import pyplot as plt
+# from borland_datetime import TDateTime
+# from matplotlib import rc
+# rc('font', **{'family': 'serif'})
+# rc('text', usetex=True)
+# rc('text.latex', preamble=r"\usepackage[T2A]{fontenc}")
+# rc('text.latex', preamble=r"\usepackage[utf8]{inputenc}")
+# rc('text.latex', preamble=r"\usepackage[russian]{babel}")
 
 
 class MoistureContent:
@@ -59,7 +61,7 @@ class MoistureContent:
             P = self.w.Pressure(t, dimension=p.weather.labels.P_hpa)
             hum = self.w.Rho_abs(t)
             model.setParameters(temperature=T, pressure=P, rho=hum)
-            A = np.zeros((2, 2),dtype=float)
+            A = np.zeros((2, 2), dtype=float)
             b = np.zeros(2, dtype=float)
             for f, brt in spec:
                 krho, kw = model.krho(f), model.kw(f, self.tcl)
@@ -69,6 +71,56 @@ class MoistureContent:
             q, w = np.linalg.solve(A, b).tolist()
             session_q.add('q', Point(t, q))
             session_w.add('w', Point(t, w))
+        return session_q, session_w
+
+    def optimize(self, frequencies: list = None,
+                 t_step: float = None) -> Tuple[Session, Session]:
+        print("Moisture content evaluation (spectral method)...")
+        if not frequencies:
+            frequencies = self.m.DATA.keys
+        session = self.m.DATA.select(frequencies)
+        session.thin_fast(t_step)
+        session.box()
+        timestamps = session.get_timestamps_averaged()
+        model = Model(theta=0)
+        session_q, session_w = Session(), Session()
+        for j, t in enumerate(timestamps):
+            print('{:.2f}%'.format(j / len(timestamps) * 100), end='\r', flush=True)
+            spec = session.get_spectrum(t)
+            T = self.w.Temperature(t, dimension=p.weather.labels.T_C)
+            P = self.w.Pressure(t, dimension=p.weather.labels.P_hpa)
+            hum = self.w.Rho_abs(t)
+            model.setParameters(temperature=T, pressure=P, rho=hum)
+            A = np.zeros((2, 2), dtype=float)
+            b = np.zeros(2, dtype=float)
+            for f, brt in spec:
+                krho, kw = model.krho(f), model.kw(f, self.tcl)
+                A += np.array([[krho * krho, krho * kw], [krho * kw, kw * kw]])
+                b_ = model.opacity(brt, self.t_avg) * math.cos(self.theta) - model.tauO_theory(f)
+                b += np.array([b_ * krho, b_ * kw])
+            q, w = np.linalg.solve(A, b).tolist()
+            session_q.add('q', Point(t, q))
+            session_w.add('w', Point(t, w))
+        mval = min(session_w.get_series('w').data, key=lambda p_: p_.val)  # TBD
+        if mval.val < 0:
+            session_q = Session()
+            session_w.get_series('w').data = [Point(p_.time, p_.val - mval.val)
+                                              for p_ in session_w.get_series('w').data]  # TBD
+            for j, t in enumerate(timestamps):
+                print('{:.2f}%'.format(j / len(timestamps) * 100), end='\r', flush=True)
+                spec = session.get_spectrum(t)
+                T = self.w.Temperature(t, dimension=p.weather.labels.T_C)
+                P = self.w.Pressure(t, dimension=p.weather.labels.P_hpa)
+                hum = self.w.Rho_abs(t)
+                model.setParameters(temperature=T, pressure=P, rho=hum)
+                a, b = 0., 0.
+                for f, brt in spec:
+                    krho, kw = model.krho(f), model.kw(f, self.tcl)
+                    a += krho * (model.opacity(brt, self.t_avg) * math.cos(self.theta) -  # TBD
+                                 model.tauO_theory(f) - kw * session_w.get_series('w').data[j].val)
+                    b += krho * krho
+                q = a / b
+                session_q.add('q', Point(t, q))
         return session_q, session_w
 
     # def tpwv_standard(self, t_step: float = None, Hrho: float = 1.8, smooth: int = 0) -> Session:

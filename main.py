@@ -283,7 +283,8 @@ if __name__ == '__main__':
             # W = c.liquidWater_spectral(t_step=TDateTime(ss=220).toDouble())
             # Q, W = c.Spectral(t_step=TDateTime(ss=11).toDouble())
             # Q, W = c.Spectral(t_step=TDateTime(ss=220).toDouble())
-            Q, W = c.leastSquares()
+            # Q, W = c.leastSquares()
+            Q, W = c.optimize()
 
             savefig_path_q, savefig_path_w = None, None
             if int(ns.saveplots):
