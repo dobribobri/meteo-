@@ -147,7 +147,7 @@ class Model:
         :return: весовая функция k_rho (водяной пар).
         """
         # Q = Model.Q(rho0=self.rho, Hrho=Model.H2(frequency, self.rainQ))
-        Q = Model.Q(rho0=self.rho, Hrho=1.8)
+        Q = Model.Q(rho0=self.rho, Hrho=1.6)
         # Q = Model.Q(rho0=10, Hrho=Model.H2(frequency, self.rainQ))
         # Q = Model.Q(rho0=10, Hrho=1.8)
         # Q = 1.575

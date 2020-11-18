@@ -41,90 +41,8 @@ class MoistureContent:
         self.m = measurement
         self.w = weather
 
-    def tpwv_standard(self, t_step: float = None, Hrho: float = 1.8, smooth: int = 0) -> Session:
-        session = self.m.DATA.copy()
-        session.thin_fast(t_step)
-        session.box()
-        timestamps = session.get_timestamps_averaged()
-        out = Session()
-        for i in range(smooth, len(timestamps)):
-            t = timestamps[i]
-            hum = self.w.Rho_abs(t)
-            for j in range(i - smooth, i):
-                hum += self.w.Rho_abs(timestamps[j])
-            hum /= (smooth + 1)
-            out.add('q', Point(t, Model.Q(rho0=hum, Hrho=Hrho)))
-        return out
-
-    def liquidWater_spectral(self, frequencies: list = None,
-                             t_step: float = None, w_step: float = 0.01) -> Session:
-        print("Liquid water content evaluation...")
-        if not frequencies:
-            frequencies = self.m.DATA.keys
-        session = self.m.DATA.select(frequencies)
-        session.thin_fast(t_step)
-        session.box()
-        timestamps = session.get_timestamps_averaged()
-        out = Session()
-        model = Model(theta=0)
-        for j, t in enumerate(timestamps):
-            print('{:.2f}%'.format(j/len(timestamps)*100), end='\r', flush=True)
-            spec = session.get_spectrum(t)
-            T = self.w.Temperature(t, dimension=p.weather.labels.T_C)
-            P = self.w.Pressure(t, dimension=p.weather.labels.P_hpa)
-            hum = self.w.Rho_abs(t)
-            model.setParameters(temperature=T, pressure=P, rho=hum)
-            w_ = [max(model.opacity(brt, Tavg=self.t_avg) - model.tau_theory(f), 0) /
-                  model.kw(f, tcl=self.tcl)
-                  for f, brt in spec]
-            w_max = np.max(w_)
-            w_min = np.min(w_)
-            minimal, W = sys.maxsize, 0.
-            for w in np.arange(w_min, w_max + w_step, w_step):
-                rms = math.sqrt(
-                    sum(
-                        [(model.opacity(brt, Tavg=self.t_avg) -
-                          model.tau_theory(f) -
-                          model.kw(f, tcl=self.tcl) * w) ** 2
-                         for f, brt in spec]
-                    )
-                )
-                if rms < minimal:
-                    minimal = rms
-                    W = w
-            out.add('w', Point(t, W))
-
-            # ANALYSIS
-            # if 49 <= j < 60:
-            #     plt.figure(876342 + j)
-            #     plt.title(TDateTime.fromDouble(t).strTime('hm'))
-            #     plt.plot(frequencies, [model.tau_theory(f) for f in frequencies],
-            #              color='darkblue', linestyle='-.',
-            #              label=r'$\tau(\nu)$')
-            #     plt.plot(frequencies, [model.opacity(brt, self.t_avg) for _, brt in spec],
-            #              color='forestgreen',
-            #              label=r'$\ln(T_{avg}^{\nu}) - \ln(T_{avg}^{\nu} - T_b(\nu))$')
-            #     plt.plot(frequencies, [model.tau_theory(f) + model.kw(f, self.tcl) * w_min
-            #                            for f in frequencies],
-            #              color='crimson', linestyle=':',
-            #              label=r'$\tau(\nu) + k_w(\nu, T_{cl})\cdot ' + '{:.2f}$'.format(w_min))
-            #     plt.plot(frequencies, [model.tau_theory(f) + model.kw(f, self.tcl) * w_max
-            #                            for f in frequencies],
-            #              color='crimson', linestyle='--',
-            #              label=r'$\tau(\nu) + k_w(\nu, T_{cl})\cdot ' + '{:.2f}$'.format(w_max))
-            #     plt.plot(frequencies, [model.tau_theory(f) + model.kw(f, self.tcl) * W
-            #                            for f in frequencies],
-            #              color='crimson', linestyle='-',
-            #              label=r'$\tau(\nu) + k_w(\nu, T_{cl})\cdot ' + '{:.2f}$'.format(W))
-            #     plt.legend(loc='best')
-
-        print('100%   ', flush=True)
-        return out
-
-    def Spectral(self, frequencies: list = None,
-                 t_step: float = None,
-                 q_step: float = None,
-                 w_step: float = 0.01) -> Tuple[Session, Session]:
+    def leastSquares(self, frequencies: list = None,
+                     t_step: float = None) -> Tuple[Session, Session]:
         print("Moisture content evaluation (spectral method)...")
         if not frequencies:
             frequencies = self.m.DATA.keys
@@ -135,102 +53,214 @@ class MoistureContent:
         model = Model(theta=0)
         session_q, session_w = Session(), Session()
         for j, t in enumerate(timestamps):
-            # if not(290 < j < 310):
-            #     continue
-            print('{:.2f}%'.format(j/len(timestamps)*100), end='\r', flush=True)
+            print('{:.2f}%'.format(j / len(timestamps) * 100), end='\r', flush=True)
             spec = session.get_spectrum(t)
             T = self.w.Temperature(t, dimension=p.weather.labels.T_C)
             P = self.w.Pressure(t, dimension=p.weather.labels.P_hpa)
             hum = self.w.Rho_abs(t)
             model.setParameters(temperature=T, pressure=P, rho=hum)
-            q_min = Model.Q(rho0=hum)
-            q_max = max([(model.opacity(brt, Tavg=self.t_avg) - model.tauO_theory(f)) / model.krho(f)
-                         for f, brt in spec])
-            minimal, Q, W = sys.maxsize, q_min, 0.
-            if not q_step:
-                q_step_ = max((q_max - q_min) / 10., 0.1)
-            else:
-                q_step_ = q_step
-            for q in np.arange(q_min, q_max + q_step_, q_step_):
-                w_ = [max(
-                          model.opacity(brt, Tavg=self.t_avg) - model.tauO_theory(f) - model.krho(f) * q,
-                          0
-                      ) / model.kw(f, tcl=self.tcl)
-                      for f, brt in spec]
-                w_max = np.max(w_)
-                w_min = np.min(w_)
-                for w in np.arange(w_min, w_max + w_step, w_step):
-                    rms = math.sqrt(
-                        sum(
-                            [(model.opacity(brt, Tavg=self.t_avg) -
-                              model.tauO_theory(f) - model.krho(f) * q -
-                              model.kw(f, tcl=self.tcl) * w) ** 2
-                             for f, brt in spec]
-                        )
-                    )
-                    if rms < minimal:
-                        minimal = rms
-                        Q, W = q, w
-            session_q.add('q', Point(t, Q))
-            session_w.add('w', Point(t, W))
-
-            # ANALYSIS
-            # plt.figure(100000 + j)
-            # plt.title('{} UTC+3 (MSK)\n'.format(TDateTime.fromDouble(t).strTime('hms')) +
-            #           r'$T_0 = {:.1f}'.format(T) + r'^{\circ}$C, ' +
-            #           r'$P_0 = {:.1f}$'.format(P/1.333) + ' мм.рт.ст., ' +
-            #           r'$\rho_0 = {:.2f}$'.format(hum) + ' г/м$^3$')
-            # plt.xlabel(r'Частота $\nu$, ГГц')
-            # plt.ylabel('Поглощение, неперы')
-            # plt.plot(frequencies, [model.tau_theory(f) for f in frequencies],
-            #          color='darkblue', linestyle=':',
-            #          label=r'(1) $\tau_{O_2}(\nu) + \tau_{\rho}(\nu),~$ Rec. ITU-R P676')
-            # plt.plot(frequencies, [model.tauO_theory(f) +
-            #                        model.krho(f) * Q
-            #                        for f in frequencies],
-            #          color='darkblue', linestyle='--',
-            #          label=r'(2) $\tau_{O_2}(\nu) + k_{\rho}(\nu)\cdot Q_i,~ Q_i = '
-            #                + '{:.2f}$'.format(Q))
-            # plt.plot(frequencies, [model.opacity(brt, self.t_avg) for _, brt in spec],
-            #          color='forestgreen', linestyle='-.',
-            #          label=r'(3) $\ln(T_{avg}^{\nu}) - \ln(T_{avg}^{\nu} - T_b(\nu))$')
-            # w_ = [max(
-            #     model.opacity(brt, Tavg=self.t_avg) - model.tauO_theory(f) - model.krho(f) * Q,
-            #     0
-            # ) / model.kw(f, tcl=self.tcl)
-            #       for f, brt in spec]
-            # w_max = np.max(w_)
-            # w_min = np.min(w_)
-            # plt.plot(frequencies, [model.tauO_theory(f) +
-            #                        model.krho(f) * Q +
-            #                        model.kw(f, self.tcl) * w_min
-            #                        for f in frequencies],
-            #          color='crimson', linestyle=':',
-            #          label=r'(4) $\tau_{O_2}(\nu) + k_{\rho}(\nu)\cdot '
-            #                + '{:.2f}'.format(Q) +
-            #                r' + k_w(\nu, T_{cl})\cdot W_{\min}$')
-            # plt.plot(frequencies, [model.tauO_theory(f) +
-            #                        model.krho(f) * Q +
-            #                        model.kw(f, self.tcl) * w_max
-            #                        for f in frequencies],
-            #          color='crimson', linestyle='--',
-            #          label=r'(5) $\tau_{O_2}(\nu) + k_{\rho}(\nu)\cdot '
-            #                + '{:.2f}'.format(Q) +
-            #                r' + k_w(\nu, T_{cl})\cdot W_{\max}$')
-            # plt.plot(frequencies, [model.tauO_theory(f) +
-            #                        model.krho(f) * Q +
-            #                        model.kw(f, self.tcl) * W
-            #                        for f in frequencies],
-            #          color='crimson', linestyle='-',
-            #          label=r'(6) $\tau_{O_2}(\nu) + k_{\rho}(\nu)\cdot '
-            #                + '{:.2f}'.format(Q) +
-            #                r' + k_w(\nu, T_{cl})\cdot '
-            #                + '{:.2f}$'.format(W))
-            # leg = plt.legend(loc='best')
-            # leg.get_frame().set_linewidth(0.0)
-
-        print('100%   ', flush=True)
+            A = np.zeros((2, 2),dtype=float)
+            b = np.zeros(2, dtype=float)
+            for f, brt in spec:
+                krho, kw = model.krho(f), model.kw(f, self.tcl)
+                A += np.array([[krho * krho, krho * kw], [krho * kw, kw * kw]])
+                b_ = model.opacity(brt, self.t_avg) * math.cos(self.theta) - model.tauO_theory(f)
+                b += np.array([b_ * krho, b_ * kw])
+            q, w = np.linalg.solve(A, b).tolist()
+            session_q.add('q', Point(t, q))
+            session_w.add('w', Point(t, w))
         return session_q, session_w
+
+    # def tpwv_standard(self, t_step: float = None, Hrho: float = 1.8, smooth: int = 0) -> Session:
+    #     session = self.m.DATA.copy()
+    #     session.thin_fast(t_step)
+    #     session.box()
+    #     timestamps = session.get_timestamps_averaged()
+    #     out = Session()
+    #     for i in range(smooth, len(timestamps)):
+    #         t = timestamps[i]
+    #         hum = self.w.Rho_abs(t)
+    #         for j in range(i - smooth, i):
+    #             hum += self.w.Rho_abs(timestamps[j])
+    #         hum /= (smooth + 1)
+    #         out.add('q', Point(t, Model.Q(rho0=hum, Hrho=Hrho)))
+    #     return out
+    #
+    # def liquidWater_spectral(self, frequencies: list = None,
+    #                          t_step: float = None, w_step: float = 0.01) -> Session:
+    #     print("Liquid water content evaluation...")
+    #     if not frequencies:
+    #         frequencies = self.m.DATA.keys
+    #     session = self.m.DATA.select(frequencies)
+    #     session.thin_fast(t_step)
+    #     session.box()
+    #     timestamps = session.get_timestamps_averaged()
+    #     out = Session()
+    #     model = Model(theta=0)
+    #     for j, t in enumerate(timestamps):
+    #         print('{:.2f}%'.format(j/len(timestamps)*100), end='\r', flush=True)
+    #         spec = session.get_spectrum(t)
+    #         T = self.w.Temperature(t, dimension=p.weather.labels.T_C)
+    #         P = self.w.Pressure(t, dimension=p.weather.labels.P_hpa)
+    #         hum = self.w.Rho_abs(t)
+    #         model.setParameters(temperature=T, pressure=P, rho=hum)
+    #         w_ = [max(model.opacity(brt, Tavg=self.t_avg) - model.tau_theory(f), 0) /
+    #               model.kw(f, tcl=self.tcl)
+    #               for f, brt in spec]
+    #         w_max = np.max(w_)
+    #         w_min = np.min(w_)
+    #         minimal, W = sys.maxsize, 0.
+    #         for w in np.arange(w_min, w_max + w_step, w_step):
+    #             rms = math.sqrt(
+    #                 sum(
+    #                     [(model.opacity(brt, Tavg=self.t_avg) -
+    #                       model.tau_theory(f) -
+    #                       model.kw(f, tcl=self.tcl) * w) ** 2
+    #                      for f, brt in spec]
+    #                 )
+    #             )
+    #             if rms < minimal:
+    #                 minimal = rms
+    #                 W = w
+    #         out.add('w', Point(t, W))
+    #
+    #         # ANALYSIS
+    #         # if 49 <= j < 60:
+    #         #     plt.figure(876342 + j)
+    #         #     plt.title(TDateTime.fromDouble(t).strTime('hm'))
+    #         #     plt.plot(frequencies, [model.tau_theory(f) for f in frequencies],
+    #         #              color='darkblue', linestyle='-.',
+    #         #              label=r'$\tau(\nu)$')
+    #         #     plt.plot(frequencies, [model.opacity(brt, self.t_avg) for _, brt in spec],
+    #         #              color='forestgreen',
+    #         #              label=r'$\ln(T_{avg}^{\nu}) - \ln(T_{avg}^{\nu} - T_b(\nu))$')
+    #         #     plt.plot(frequencies, [model.tau_theory(f) + model.kw(f, self.tcl) * w_min
+    #         #                            for f in frequencies],
+    #         #              color='crimson', linestyle=':',
+    #         #              label=r'$\tau(\nu) + k_w(\nu, T_{cl})\cdot ' + '{:.2f}$'.format(w_min))
+    #         #     plt.plot(frequencies, [model.tau_theory(f) + model.kw(f, self.tcl) * w_max
+    #         #                            for f in frequencies],
+    #         #              color='crimson', linestyle='--',
+    #         #              label=r'$\tau(\nu) + k_w(\nu, T_{cl})\cdot ' + '{:.2f}$'.format(w_max))
+    #         #     plt.plot(frequencies, [model.tau_theory(f) + model.kw(f, self.tcl) * W
+    #         #                            for f in frequencies],
+    #         #              color='crimson', linestyle='-',
+    #         #              label=r'$\tau(\nu) + k_w(\nu, T_{cl})\cdot ' + '{:.2f}$'.format(W))
+    #         #     plt.legend(loc='best')
+    #
+    #     print('100%   ', flush=True)
+    #     return out
+    #
+    # def Spectral(self, frequencies: list = None,
+    #              t_step: float = None,
+    #              q_step: float = None,
+    #              w_step: float = 0.01) -> Tuple[Session, Session]:
+    #     print("Moisture content evaluation (spectral method)...")
+    #     if not frequencies:
+    #         frequencies = self.m.DATA.keys
+    #     session = self.m.DATA.select(frequencies)
+    #     session.thin_fast(t_step)
+    #     session.box()
+    #     timestamps = session.get_timestamps_averaged()
+    #     model = Model(theta=0)
+    #     session_q, session_w = Session(), Session()
+    #     for j, t in enumerate(timestamps):
+    #         # if not(290 < j < 310):
+    #         #     continue
+    #         print('{:.2f}%'.format(j/len(timestamps)*100), end='\r', flush=True)
+    #         spec = session.get_spectrum(t)
+    #         T = self.w.Temperature(t, dimension=p.weather.labels.T_C)
+    #         P = self.w.Pressure(t, dimension=p.weather.labels.P_hpa)
+    #         hum = self.w.Rho_abs(t)
+    #         model.setParameters(temperature=T, pressure=P, rho=hum)
+    #         q_min = Model.Q(rho0=hum)
+    #         q_max = max([(model.opacity(brt, Tavg=self.t_avg) - model.tauO_theory(f)) / model.krho(f)
+    #                      for f, brt in spec])
+    #         minimal, Q, W = sys.maxsize, q_min, 0.
+    #         if not q_step:
+    #             q_step_ = max((q_max - q_min) / 10., 0.1)
+    #         else:
+    #             q_step_ = q_step
+    #         for q in np.arange(q_min, q_max + q_step_, q_step_):
+    #             w_ = [max(
+    #                       model.opacity(brt, Tavg=self.t_avg) - model.tauO_theory(f) - model.krho(f) * q,
+    #                       0
+    #                   ) / model.kw(f, tcl=self.tcl)
+    #                   for f, brt in spec]
+    #             w_max = np.max(w_)
+    #             w_min = np.min(w_)
+    #             for w in np.arange(w_min, w_max + w_step, w_step):
+    #                 rms = math.sqrt(
+    #                     sum(
+    #                         [(model.opacity(brt, Tavg=self.t_avg) -
+    #                           model.tauO_theory(f) - model.krho(f) * q -
+    #                           model.kw(f, tcl=self.tcl) * w) ** 2
+    #                          for f, brt in spec]
+    #                     )
+    #                 )
+    #                 if rms < minimal:
+    #                     minimal = rms
+    #                     Q, W = q, w
+    #         session_q.add('q', Point(t, Q))
+    #         session_w.add('w', Point(t, W))
+    #
+    #         # ANALYSIS
+    #         # plt.figure(100000 + j)
+    #         # plt.title('{} UTC+3 (MSK)\n'.format(TDateTime.fromDouble(t).strTime('hms')) +
+    #         #           r'$T_0 = {:.1f}'.format(T) + r'^{\circ}$C, ' +
+    #         #           r'$P_0 = {:.1f}$'.format(P/1.333) + ' мм.рт.ст., ' +
+    #         #           r'$\rho_0 = {:.2f}$'.format(hum) + ' г/м$^3$')
+    #         # plt.xlabel(r'Частота $\nu$, ГГц')
+    #         # plt.ylabel('Поглощение, неперы')
+    #         # plt.plot(frequencies, [model.tau_theory(f) for f in frequencies],
+    #         #          color='darkblue', linestyle=':',
+    #         #          label=r'(1) $\tau_{O_2}(\nu) + \tau_{\rho}(\nu),~$ Rec. ITU-R P676')
+    #         # plt.plot(frequencies, [model.tauO_theory(f) +
+    #         #                        model.krho(f) * Q
+    #         #                        for f in frequencies],
+    #         #          color='darkblue', linestyle='--',
+    #         #          label=r'(2) $\tau_{O_2}(\nu) + k_{\rho}(\nu)\cdot Q_i,~ Q_i = '
+    #         #                + '{:.2f}$'.format(Q))
+    #         # plt.plot(frequencies, [model.opacity(brt, self.t_avg) for _, brt in spec],
+    #         #          color='forestgreen', linestyle='-.',
+    #         #          label=r'(3) $\ln(T_{avg}^{\nu}) - \ln(T_{avg}^{\nu} - T_b(\nu))$')
+    #         # w_ = [max(
+    #         #     model.opacity(brt, Tavg=self.t_avg) - model.tauO_theory(f) - model.krho(f) * Q,
+    #         #     0
+    #         # ) / model.kw(f, tcl=self.tcl)
+    #         #       for f, brt in spec]
+    #         # w_max = np.max(w_)
+    #         # w_min = np.min(w_)
+    #         # plt.plot(frequencies, [model.tauO_theory(f) +
+    #         #                        model.krho(f) * Q +
+    #         #                        model.kw(f, self.tcl) * w_min
+    #         #                        for f in frequencies],
+    #         #          color='crimson', linestyle=':',
+    #         #          label=r'(4) $\tau_{O_2}(\nu) + k_{\rho}(\nu)\cdot '
+    #         #                + '{:.2f}'.format(Q) +
+    #         #                r' + k_w(\nu, T_{cl})\cdot W_{\min}$')
+    #         # plt.plot(frequencies, [model.tauO_theory(f) +
+    #         #                        model.krho(f) * Q +
+    #         #                        model.kw(f, self.tcl) * w_max
+    #         #                        for f in frequencies],
+    #         #          color='crimson', linestyle='--',
+    #         #          label=r'(5) $\tau_{O_2}(\nu) + k_{\rho}(\nu)\cdot '
+    #         #                + '{:.2f}'.format(Q) +
+    #         #                r' + k_w(\nu, T_{cl})\cdot W_{\max}$')
+    #         # plt.plot(frequencies, [model.tauO_theory(f) +
+    #         #                        model.krho(f) * Q +
+    #         #                        model.kw(f, self.tcl) * W
+    #         #                        for f in frequencies],
+    #         #          color='crimson', linestyle='-',
+    #         #          label=r'(6) $\tau_{O_2}(\nu) + k_{\rho}(\nu)\cdot '
+    #         #                + '{:.2f}'.format(Q) +
+    #         #                r' + k_w(\nu, T_{cl})\cdot '
+    #         #                + '{:.2f}$'.format(W))
+    #         # leg = plt.legend(loc='best')
+    #         # leg.get_frame().set_linewidth(0.0)
+    #
+    #     print('100%   ', flush=True)
+    #     return session_q, session_w
 
     def dual_frequency(self, freq1: float, freq2: float,
                        t_step: float = None, resolve: bool = False) -> Session:
