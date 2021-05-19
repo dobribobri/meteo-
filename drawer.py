@@ -107,7 +107,7 @@ class Drawer:
         m, w, lst = '', 1, '--'
         if marker:
             m = '+'
-            lst = ''
+            lst = '--'
         if linewidth:
             w = linewidth
         if linestyle:

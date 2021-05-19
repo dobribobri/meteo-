@@ -11,7 +11,7 @@ import sys
 
 
 class Point:
-    def __init__(self, time: float = None, val: Any = None):
+    def __init__(self, time: Any = None, val: Any = None):
         self.time = time
         self.val = val
 
@@ -339,3 +339,13 @@ class Session:
             s += '\n---- {} ----\n'.format(series.key)
             s += series.__str__()
         return s
+
+    def transpose(self):
+        boxed = self.copy()
+        boxed.box()
+        timestamps = boxed.get_timestamps_averaged()
+        out = Session()
+        for t in timestamps:
+            for series in boxed.series:
+                out.add(t, Point(series.key, series.get(t).val))
+        return out

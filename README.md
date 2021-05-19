@@ -10,14 +10,17 @@ Example:<br>
 $ python3 main.py -Y 2019 -M 08 -D 23 --hh 18 --mm 30 --range --sameday --H1 20 --m1 00 --saveplots --sfreport --wreport --erase
 
 
-<pre>usage: main.py [-h] [--meteo METEO [METEO ...]] [--update_meteo]
+<pre>
+usage: main.py [-h] [--meteo METEO [METEO ...]] [--update_meteo]
                [--update_calibr] [-Y YEAR] [-M MONTH] [-D DAY] [-H HH] [-m MM]
                [-s SS] [--range] [--sameday] [--Y1 Y1] [--M1 M1] [--D1 D1]
                [--H1 H1] [--m1 M1] [--s1 S1] [--erase] [--eraserar]
-               [--erasedat] [--erasetxt] [--nosf] [--noweather] [--closeplots]
-               [--noplots] [--saveplots] [--plotroot PLOTROOT] [--savereports]
-               [--tbreport] [--sfreport] [--wreport] [--reportroot REPORTROOT]
-               [--txtparsermode TXTPARSERMODE]
+               [--erasedat] [--erasetxt] [--nosf] [--noweather] [--noqw]
+               [--closeplots] [--noplots] [--saveplots] [--plotroot PLOTROOT]
+               [--savereports] [--tbreport] [--sfreport] [--wreport]
+               [--qwreport] [--qwsfreport] [--reportroot REPORTROOT]
+               [--txtparsermode TXTPARSERMODE] [--rangespec RANGESPEC]
+               [--recycle RECYCLE]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -59,6 +62,7 @@ optional arguments:
   --erasetxt            Delete TXT-files.
   --nosf                Do not calculate structural functions.
   --noweather           Do not load weather data.
+  --noqw                No moisture content analysis.
   --closeplots          Show and close plots immediately.
   --noplots             Do not process plots.
   --saveplots           Save plots to --plotroot directory.
@@ -67,8 +71,16 @@ optional arguments:
   --tbreport            Save report on brightness temperatures.
   --sfreport            Save report on structural functions.
   --wreport             Save weather report.
+  --qwreport            Save report on moisture content parameters.
+  --qwsfreport          Save report on structural functions of moisture
+                        content parameters.
   --reportroot REPORTROOT
                         Where to store reports? By default: ./reports/
   --txtparsermode TXTPARSERMODE
                         Set TXT-parser special mode.
+  --rangespec RANGESPEC
+                        Specify interval of measurements with string of &apos;YYYY-
+                        MM-DD : hh:mm - hh:mm&apos; format.
+  --recycle RECYCLE     Specify how many times brightness temperature series
+                        are repeated.
 </pre>

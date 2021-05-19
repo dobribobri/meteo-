@@ -5,7 +5,7 @@
 # # 2019
 #
 
-from session import Session
+from session import Session, Series, Point
 from borland_datetime import TDateTime, daterange
 import binaryparser  # C++
 from datetime import datetime, timedelta
@@ -177,6 +177,18 @@ class Measurement:
             self.tfiles.append(tfile)
         self.erase_txt = erase_txt
         self.DATA = self.getData()
+
+    def recycleData(self, times: int = 30):
+        newData = self.DATA.copy()
+        for _ in range(times):
+            # start, stop = newData.get_time_bounds()
+            # lag = stop - start
+            for s in self.DATA.series:
+                ns = Series(s.key, s.data)
+                lag = ns.t_stop - ns.t_start
+                ns.apply_to_points(lambda point: Point(point.time + lag, point.val))
+                newData.add(ns)
+        self.DATA = newData
 
     def getData(self, frequencies: list = None) -> Session:
         MDATA = Session()

@@ -113,6 +113,12 @@ def createArgParser():
     p.add_argument('--wreport', action='store_true', default=False,
                    help="Save weather report.")
 
+    p.add_argument('--qwreport', action='store_true', default=False,
+                   help="Save report on moisture content parameters.")
+
+    p.add_argument('--qwsfreport', action='store_true', default=False,
+                   help="Save report on structural functions of moisture content parameters.")
+
     p.add_argument('--reportroot', default=Settings.Reports.ReportRoot,
                    help="Where to store reports? By default: " + Settings.Reports.ReportRoot)
 
@@ -120,7 +126,10 @@ def createArgParser():
                    help="Set TXT-parser special mode.")
 
     p.add_argument('--rangespec', default='',
-                   help="Specify interval of measurements with string of \'YYYY-MM-DD : hh:mm - hh:mm\' format")
+                   help="Specify interval of measurements with string of \'YYYY-MM-DD : hh:mm - hh:mm\' format.")
+
+    p.add_argument('--recycle', default='',
+                   help="Specify how many times brightness temperature series are repeated.")
 
     return p
 
@@ -181,6 +190,8 @@ if __name__ == '__main__':
     m = Measurement(start=start, stop=stop,
                     erase_rar=ns.eraserar, erase_dat=ns.erasedat, erase_txt=ns.erasetxt,
                     tfparsemode=ns.txtparsermode)
+    if ns.recycle:
+        m.recycleData(int(ns.recycle))
 
     # Установка директорий для сохранения графиков и отчётности
     Settings.Plots.refresh(ns.plotroot)
@@ -198,9 +209,9 @@ if __name__ == '__main__':
 
     if not int(ns.noplots):
         d.draw(m.DATA,
-               title=u'Brightness temperatures',
-               xlabel=u'time (hh:mm)', ylabel=u'Brightness temperature, K',
-               labels=parameter.plot.labels('en').basic_plus,
+               # title=u'Brightness temperatures',
+               xlabel=u'время (чч:мм)', ylabel=u'Яркостная температура, K',
+               labels=parameter.plot.labels('ru').basic_plus,
                colors=parameter.plot.colors.basic_plus,
                linestyles=parameter.plot.linestyles.basic_plus,
                linewidth=1.35, timeformat='hm',
@@ -225,18 +236,20 @@ if __name__ == '__main__':
 
         if not int(ns.noplots):
             d.draw(SFData,
-                   title=u'Structural functions', xlabel=u'sec.',
-                   ylabel=u'sqrt(S), K',
-                   labels=parameter.plot.labels('en').basic_plus,
+                   # title=u'Structural functions',
+                   xlabel=u'сек.',
+                   ylabel=u'Кв. корень структурной ф-ции, K',
+                   labels=parameter.plot.labels('ru').basic_plus,
                    colors=parameter.plot.colors.basic_plus,
                    marker=True, timeformat='!s',
                    savefig_path=savefig_path,
                    x_ticks_step=TDateTime(ss=33).toDouble(),
-                   axvlines=[TDateTime(ss=22).toDouble(),
-                             TDateTime(ss=55).toDouble(),
+                   axvlines=[TDateTime(ss=33).toDouble(),
+                             TDateTime(ss=66).toDouble(),
                              TDateTime(mm=1, ss=39).toDouble(),
-                             TDateTime(mm=2, ss=34).toDouble(),
-                             TDateTime(mm=3, ss=18).toDouble()])
+                             # TDateTime(mm=2, ss=34).toDouble(),
+                             # TDateTime(mm=3, ss=18).toDouble()
+                             ])
 
         if int(ns.sfreport):
             if not os.path.exists(Settings.Reports.ReportRoot):
@@ -246,6 +259,9 @@ if __name__ == '__main__':
             report_path = os.path.join(Settings.Reports.SFReportDir, lbl + '.sf' + '.txt')
             Reports.makeTable(SFData, report_path,
                               apply_to_timestamp=lambda t: TDateTime.fromDouble(t).strSeconds())
+            report_path_transposed = os.path.join(Settings.Reports.SFReportDir, lbl + '.sf_transposed' + '.txt')
+            Reports.makeTableTransposed(SFData, report_path_transposed,
+                                        apply_to_timestamp=lambda t: TDateTime.fromDouble(t).strSeconds())
 
     if not int(ns.noweather):
         w = Weather(start, stop)
@@ -277,52 +293,82 @@ if __name__ == '__main__':
 
         if not int(ns.noqw):
             c = MoistureContent(measurement=m, weather=w)
-            # Q, W = c.DualFrequency(parameter.freqs.qw2_freq_pairs)
-            # Hrho = 1.8
-            # Q = c.tpwv_standard(Hrho=Hrho, smooth=20)
-            # W = c.liquidWater_spectral(t_step=TDateTime(ss=220).toDouble())
-            # Q, W = c.Spectral(t_step=TDateTime(ss=11).toDouble())
-            # Q, W = c.Spectral(t_step=TDateTime(ss=220).toDouble())
-            # Q, W = c.leastSquares()
-            Q, W = c.optimize()
 
-            savefig_path_q, savefig_path_w = None, None
+            Q_op, W_op = c.optimize()
+            # Q_df, W_df = c.DUALFREQCPP()
+
+            Q_op_sf = structural_functions(Q_op)
+            W_op_sf = structural_functions(W_op)
+
+            savefig_path_q_op, savefig_path_w_op = None, None
+            savefig_path_q_df, savefig_path_w_df = None, None
             if int(ns.saveplots):
                 if not os.path.exists(Settings.Plots.QWPlotDir):
                     os.makedirs(Settings.Plots.QWPlotDir)
-                savefig_path_q = os.path.join(Settings.Plots.QWPlotDir, lbl + '.q' + '.png')
-                savefig_path_w = os.path.join(Settings.Plots.QWPlotDir, lbl + '.w' + '.png')
+                savefig_path_q_op = os.path.join(Settings.Plots.QWPlotDir, lbl + '.q_op' + '.png')
+                savefig_path_w_op = os.path.join(Settings.Plots.QWPlotDir, lbl + '.w_op' + '.png')
+                savefig_path_q_df = os.path.join(Settings.Plots.QWPlotDir, lbl + '.q_df' + '.png')
+                savefig_path_w_df = os.path.join(Settings.Plots.QWPlotDir, lbl + '.w_df' + '.png')
 
             if not int(ns.noplots):
-                # d.draw(Q,
-                #        title=u'Total mass of water vapor', xlabel=u'hh:mm (time)',
-                #        ylabel=r'g/cm$^2$',
-                #        labels=parameter.plot.labels('en').qw2,
-                #        colors=parameter.plot.colors.qw2,
-                #        linewidth=1.35, timeformat='hm',
-                #        savefig_path=savefig_path_q)
-                # d.draw(W,
-                #        title=u'Liquid water content in clouds', xlabel=u'hh:mm (time)',
-                #        ylabel=r'kg/m$^2$',
-                #        labels=parameter.plot.labels('en').qw2,
-                #        colors=parameter.plot.colors.qw2,
-                #        linewidth=1.35, timeformat='hm',
-                #        savefig_path=savefig_path_w)
 
-                d.draw(Q,
-                       title=u'Total mass of water vapor', xlabel=u'hh:mm (time)',
-                       ylabel=r'g/cm$^2$',
-                       labels={'q': 'Spectral method'},
+                d.draw(Q_op,
+                       title=u'', xlabel=u'время (чч:мм)',
+                       ylabel=r'г/см$^2$',
+                       labels={'q': 'Полная масса водяного пара'},
                        colors={'q': 'black'},
                        linewidth=1.35, timeformat='hm',
-                       savefig_path=savefig_path_q)
-                d.draw(W,
-                       title=u'Liquid water content in clouds', xlabel=u'hh:mm (time)',
-                       ylabel=r'kg/m$^2$',
-                       labels={'w': 'Spectral method'},
+                       savefig_path=savefig_path_q_op)
+                d.draw(W_op,
+                       title=u'', xlabel=u'время (чч:мм)',
+                       ylabel=r'кг/м$^2$',
+                       labels={'w': 'Водозапас облаков'},
                        colors={'w': 'black'},
                        linewidth=1.35, timeformat='hm',
-                       savefig_path=savefig_path_w)
+                       savefig_path=savefig_path_w_op)
+
+                d.draw(Q_op_sf,
+                       title=u'', xlabel=u'сек.',
+                       ylabel=u'Кв. корень структурной ф-ции для Q',
+                       labels={'q': 'Полная масса водяного пара'},
+                       colors={'q': 'black'},
+                       marker=True, timeformat='!s',
+                       x_ticks_step=TDateTime(ss=33).toDouble(),
+                       axvlines=[TDateTime(ss=33).toDouble(),
+                                 TDateTime(ss=66).toDouble(),
+                                 TDateTime(mm=1, ss=39).toDouble(),
+                                 ])
+                d.draw(W_op_sf,
+                       title=u'', xlabel=u'сек.',
+                       ylabel=u'Кв. корень структурной ф-ции для W',
+                       labels={'w': 'Водозапас облаков'},
+                       colors={'w': 'black'},
+                       marker=True, timeformat='!s',
+                       x_ticks_step=TDateTime(ss=33).toDouble(),
+                       axvlines=[TDateTime(ss=33).toDouble(),
+                                 TDateTime(ss=66).toDouble(),
+                                 TDateTime(mm=1, ss=39).toDouble(),
+                                 ])
+
+            if int(ns.qwreport):
+                if not os.path.exists(Settings.Reports.ReportRoot):
+                    os.makedirs(Settings.Reports.ReportRoot)
+                if not os.path.exists(Settings.Reports.QWReportDir):
+                    os.makedirs(Settings.Reports.QWReportDir)
+                report_path = os.path.join(Settings.Reports.QWReportDir, lbl + '.q' + '.txt')
+                Reports.makeTable(Q_op, report_path, apply_to_timestamp=lambda t: TDateTime.fromDouble(t).strSeconds())
+                report_path = os.path.join(Settings.Reports.QWReportDir, lbl + '.w' + '.txt')
+                Reports.makeTable(W_op, report_path, apply_to_timestamp=lambda t: TDateTime.fromDouble(t).strSeconds())
+
+            if int(ns.qwsfreport):
+                if not os.path.exists(Settings.Reports.ReportRoot):
+                    os.makedirs(Settings.Reports.ReportRoot)
+                if not os.path.exists(Settings.Reports.QWReportDir):
+                    os.makedirs(Settings.Reports.QWReportDir)
+                report_path = os.path.join(Settings.Reports.QWReportDir, lbl + '.q_sf' + '.txt')
+                Reports.makeTable(Q_op_sf, report_path, apply_to_timestamp=lambda t: TDateTime.fromDouble(t).strSeconds())
+                report_path = os.path.join(Settings.Reports.QWReportDir, lbl + '.w_sf' + '.txt')
+                Reports.makeTable(W_op_sf, report_path, apply_to_timestamp=lambda t: TDateTime.fromDouble(t).strSeconds())
 
     if not int(ns.closeplots):
         d.show()

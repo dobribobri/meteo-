@@ -5,7 +5,7 @@
 # # 2019
 #
 
-# import math
+import math
 from collections import OrderedDict
 import numpy as np
 import os
@@ -72,7 +72,9 @@ class Settings:
         password: str = 'radireftp'
 
         measurementsRoot: str = os.path.join('/home/rad/', radiometerName)
-        year_path: dict = {2019: os.path.join(measurementsRoot, '2019/'),
+        year_path: dict = {2021: measurementsRoot,
+                           2020: os.path.join(measurementsRoot, '2020/'),
+                           2019: os.path.join(measurementsRoot, '2019/'),
                            2018: os.path.join(measurementsRoot, '2018/'),
                            2017: os.path.join(measurementsRoot, '2017/')}
 
