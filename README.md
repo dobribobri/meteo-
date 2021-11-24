@@ -1,4 +1,7 @@
 # meteo-
+
+See also https://github.com/dobribobri/atmrad - cloudfield modeling.
+
 Processing of microwave radiometric measurements of atmospheric radio emission (18-27 GHz)
 
 ! run firstly<br>
