@@ -96,10 +96,11 @@ class Drawer:
 
         plt.xticks(x_ticks_pos, x_ticks_labels, rotation=50, fontsize=10)
 
-        self.ax.legend(loc='best')
+        self.ax.legend(loc='best', frameon=False)
 
         plt.ioff()
         if savefig_path is not None:
+            # plt.ylim([])
             plt.savefig(savefig_path, dpi=600)
         return
 

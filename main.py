@@ -150,6 +150,7 @@ if __name__ == '__main__':
     # Подготовка базы калибровки
     if int(ns.update_calibr) or not(os.path.exists(Settings.cfdataDir)):
         Measurement.update_calibr()
+        exit(0)
 
     if ns.rangespec:
         ns.range, ns.sameday = True, True
@@ -183,7 +184,7 @@ if __name__ == '__main__':
     if int(ns.savereports):
         ns.tbreport, ns.sfreport, ns.wreport = True, True, True
 
-    lbl = start.strftime(Settings.radiometerPrefix + '_%Y%m%d%H%M%S-') + stop.strftime('%Y%m%d%H%M%S')
+    lbl = start.strftime(Settings.radiometerPrefix + '__%Y.%m.%d_%H:%M:%S_') + stop.strftime('_%Y.%m.%d_%H:%M:%S')
     if int(ns.sameday):
         lbl = start.strftime('%Y%m%d-%H%M-') + stop.strftime('%H%M')
 
@@ -294,7 +295,8 @@ if __name__ == '__main__':
         if not int(ns.noqw):
             c = MoistureContent(measurement=m, weather=w)
 
-            Q_op, W_op = c.optimize()
+            # Q_op, W_op = c.optimize()
+            Q_op, W_op = c.optimize_with_ai()
             # Q_df, W_df = c.DUALFREQCPP()
 
             Q_op_sf = structural_functions(Q_op)
@@ -312,19 +314,35 @@ if __name__ == '__main__':
 
             if not int(ns.noplots):
 
+                # d.draw(Q_op,
+                #        title=u'', xlabel=u'время (чч:мм)',
+                #        ylabel=r'г/см$^2$',
+                #        labels={'q': 'Полная масса водяного пара (метод 2)'},
+                #        colors={'q': 'black'},
+                #        linewidth=1.35, timeformat='hm',
+                #        savefig_path=savefig_path_q_op)
+                # d.draw(W_op,
+                #        title=u'', xlabel=u'время (чч:мм)',
+                #        ylabel=r'кг/м$^2$',
+                #        labels={'w': 'Водозапас облаков'},
+                #        colors={'w': 'black'},
+                #        linewidth=1.35, timeformat='hm',
+                #        savefig_path=savefig_path_w_op)
                 d.draw(Q_op,
                        title=u'', xlabel=u'время (чч:мм)',
                        ylabel=r'г/см$^2$',
-                       labels={'q': 'Полная масса водяного пара'},
-                       colors={'q': 'black'},
-                       linewidth=1.35, timeformat='hm',
+                       labels={'q': '(1)', 'q_ai': '(2)', },
+                       colors={'q': 'mediumorchid', 'q_ai': 'mediumaquamarine'},
+                       linestyles={'q': '-', 'q_ai': '--'},
+                       linewidth=1.65, timeformat='hm',
                        savefig_path=savefig_path_q_op)
                 d.draw(W_op,
                        title=u'', xlabel=u'время (чч:мм)',
                        ylabel=r'кг/м$^2$',
-                       labels={'w': 'Водозапас облаков'},
-                       colors={'w': 'black'},
-                       linewidth=1.35, timeformat='hm',
+                       labels={'w': '(1)', 'w_ai': '(2)', },
+                       colors={'w': 'mediumorchid', 'w_ai': 'mediumaquamarine'},
+                       linestyles={'w': '-', 'w_ai': '--'},
+                       linewidth=1.65, timeformat='hm',
                        savefig_path=savefig_path_w_op)
 
                 d.draw(Q_op_sf,

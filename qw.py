@@ -15,6 +15,7 @@ import numpy as np
 import math
 import ctypes
 import os
+from joblib import dump, load
 
 
 class MoistureContent:
@@ -28,7 +29,8 @@ class MoistureContent:
         :param Tcl: Average cloud temperature (Cels).
         :param theta: Observation angle (degrees).
         """
-        self.t_avg = Tavg + 273
+        # self.t_avg = Tavg + 273
+        self.t_avg = 0 + 273.12
         self.tcl = Tcl
         self.theta = theta
         self.m = measurement
@@ -112,6 +114,83 @@ class MoistureContent:
                     b += krho * krho
                 q = a / b
                 session_q.add('q', Point(t, q))
+        return session_q, session_w
+
+    def optimize_with_ai(self, frequencies: list = None,
+                 t_step: float = None) -> Tuple[Session, Session]:
+        print("Moisture content evaluation (spectral method)...")
+        if not frequencies:
+            frequencies = self.m.DATA.keys
+        session = self.m.DATA.select(frequencies)
+        session.thin_fast(t_step)
+        session.box()
+        timestamps = session.get_timestamps_averaged()
+        model = Model(theta=0)
+        session_q, session_w = Session(), Session()
+
+        regr = load('regr.dump.joblib')
+
+        for j, t in enumerate(timestamps):
+            print('{:.2f}%'.format(j / len(timestamps) * 100), end='\r', flush=True)
+            spec = session.get_spectrum(t)
+            T = self.w.Temperature(t, dimension=p.weather.labels.T_C)
+            P = self.w.Pressure(t, dimension=p.weather.labels.P_hpa)
+            hum = self.w.Rho_abs(t)
+            model.setParameters(temperature=T, pressure=P, rho=hum)
+            A = np.zeros((2, 2), dtype=float)
+            b = np.zeros(2, dtype=float)
+            for f, brt in spec:
+                krho, kw = model.krho(f), model.kw(f, self.tcl)
+                print('nu {}\t\tkrho {}\t\tkw {}'.format(f, krho, kw))
+                A += np.array([[krho * krho, krho * kw], [krho * kw, kw * kw]])
+                b_ = model.opacity(brt, self.t_avg) * math.cos(self.theta) - model.tauO_theory(f)
+                b += np.array([b_ * krho, b_ * kw])
+            q, w = np.linalg.solve(A, b).tolist()
+            session_q.add('q', Point(t, q))
+            session_w.add('w', Point(t, w))
+
+            # MLP Regressor
+            x = list([brt for _, brt in spec])
+            x.extend([T, P, hum])
+            res = regr.predict(np.array(x).reshape(1, -1))
+            session_q.add('q_ai', Point(t, res[0, 0]))
+            session_w.add('w_ai', Point(t, res[0, 1]))
+
+        q_ai_mean = np.mean([point.val for point in session_q.get_series('q_ai').data])
+        w_ai_mean = np.mean([point.val for point in session_w.get_series('w_ai').data])
+
+        mval = min(session_w.get_series('w').data, key=lambda p_: p_.val)  # TBD
+        if mval.val < 0:
+            # session_q = Session()
+            session_q.get_series('q').data = []
+            session_w.get_series('w').data = [Point(p_.time, p_.val - mval.val)
+                                              for p_ in session_w.get_series('w').data]  # TBD
+            for j, t in enumerate(timestamps):
+                print('{:.2f}%'.format(j / len(timestamps) * 100), end='\r', flush=True)
+                spec = session.get_spectrum(t)
+                T = self.w.Temperature(t, dimension=p.weather.labels.T_C)
+                P = self.w.Pressure(t, dimension=p.weather.labels.P_hpa)
+                hum = self.w.Rho_abs(t)
+                model.setParameters(temperature=T, pressure=P, rho=hum)
+                a, b = 0., 0.
+                for f, brt in spec:
+                    krho, kw = model.krho(f), model.kw(f, self.tcl)
+                    a += krho * (model.opacity(brt, self.t_avg) * math.cos(self.theta) -  # TBD
+                                 model.tauO_theory(f) - kw * session_w.get_series('w').data[j].val)
+                    b += krho * krho
+                q = a / b
+                session_q.add('q', Point(t, q))
+
+        q_mean = np.mean([point.val for point in session_q.get_series('q').data])
+        w_mean = np.mean([point.val for point in session_w.get_series('w').data])
+
+        w_ai_min = np.min([point.val for point in session_w.get_series('w_ai').data])
+
+        session_q.get_series('q_ai').data = [Point(p.time, p.val - q_ai_mean + q_mean) for p in
+                                             session_q.get_series('q_ai').data]
+        session_w.get_series('w_ai').data = [Point(p.time, p.val - w_ai_min) for p in
+                                             session_w.get_series('w_ai').data]
+
         return session_q, session_w
 
     def DUALFREQCPP(self, freq_pairs=None, t_step: float = None) -> Tuple[Session, Session]:
