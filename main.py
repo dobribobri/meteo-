@@ -184,7 +184,7 @@ if __name__ == '__main__':
     if int(ns.savereports):
         ns.tbreport, ns.sfreport, ns.wreport = True, True, True
 
-    lbl = start.strftime(Settings.radiometerPrefix + '__%Y.%m.%d_%H:%M:%S_') + stop.strftime('_%Y.%m.%d_%H:%M:%S')
+    lbl = start.strftime(Settings.radiometerPrefix + '__%Y.%m.%d_%H_%M_%S_') + stop.strftime('_%Y.%m.%d_%H_%M_%S')
     if int(ns.sameday):
         lbl = start.strftime('%Y%m%d-%H%M-') + stop.strftime('%H%M')
 
