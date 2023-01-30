@@ -1,5 +1,4 @@
 
-# from cpu import ar
 import os
 from bs4 import BeautifulSoup
 import re
@@ -10,6 +9,10 @@ import numpy as np
 DATA = {}
 folder = 'Dolgoprudnyj'
 htmls = os.listdir(folder)
+months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+month_codes = {}
+for i, m in enumerate(months):
+    month_codes[m] = str(i+1).zfill(2)
 for html in htmls:
     print(html)
     with open(os.path.join(folder, html), 'r') as f:
@@ -24,7 +27,7 @@ for html in htmls:
             month = n[-2]
             day = n[-3]
             meas = n[-4]
-            measurements.append((year, month, day, meas))
+            measurements.append((int(year), int(month_codes[month]), int(day), int(meas[:-1])))
         all_pre = soup.findAll('pre')[::2]
         if len(measurements) != len(all_pre):
             continue
