@@ -24,7 +24,7 @@ from qw import MoistureContent
 def createArgParser():
     p = argparse.ArgumentParser()
     p.add_argument('--meteo', nargs='+',
-                   default="['meteo_1_2017-01-01_2019-09-01.csv', 'meteo_2_2017-01-01_2019-09-01.csv']",
+                   default="['meteo_1.csv', 'meteo_2.csv']",
                    help="""Choose CSV-files of weather data.
                    Using: [--meteo filepath_1 filepath_2 ... filepath_N ].
                    Obtain meteodata: http://orash.ire.rssi.ru/meteo/index.php"""
@@ -32,7 +32,7 @@ def createArgParser():
     p.add_argument('--update_meteo', action='store_true', default='0',
                    help="""Update weather data with --meteo csv-files.
                    If --meteo is missing (by default), following files are used:
-                   './meteo_1_2017-01-01_2019-09-01.csv', './meteo_2_2017-01-01_2019-09-01.csv'""")
+                   './meteo_1.csv', './meteo_2.csv'""")
 
     p.add_argument('--update_calibr', action='store_true', default=False,
                    help="Download files used for primary calibration of measurements.")
