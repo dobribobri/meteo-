@@ -107,7 +107,7 @@ def process(_report_names, _n):
 
 if __name__ == '__main__':
 
-    with open('Dolgoprudnyj.dump', 'wb') as dump:
+    with open('Dolgoprudnyj.dump', 'rb') as dump:
         meteosonde_data = dill.load(dump)
     m_keys = list(meteosonde_data.keys())
 
