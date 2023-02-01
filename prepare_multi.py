@@ -13,14 +13,15 @@ from multiprocessing import Pool, Manager
 reports_dir = os.path.join('full_spec_data', 'tb')
 
 
-def process(_report_names, _n):
+def process(_report_names, _report_ids, _n):
     _timestamps_ = []
     _pydatetime_ = []
     _radiometry_ = []
     _localmeteo_ = []
     _meteosonde_ = []
+    _sessionids_ = []
 
-    for report_name in _report_names:
+    for report_name, report_number in zip(_report_names, _report_ids):
         YY = report_name[6:10]
         MM = report_name[11:13]
         DD = report_name[14:16]
@@ -107,10 +108,12 @@ def process(_report_names, _n):
                 meteosonde_ = np.asarray(r_key, dtype=int)
                 _meteosonde_.append(meteosonde_)
 
+                _sessionids_.append(report_number)
+
         _n.value += 1
         print(colored('\r{:.3f}%'.format(_n.value / len(reports) * 100), 'green'), flush=True, end='          ')
 
-    return _timestamps_, _pydatetime_, _radiometry_, _localmeteo_, _meteosonde_
+    return _timestamps_, _pydatetime_, _sessionids_, _radiometry_, _localmeteo_, _meteosonde_
 
 
 def dump(_obj, _name, _dump_options):
@@ -133,13 +136,14 @@ if __name__ == '__main__':
     RADIOMETRY = []
     LOCALMETEO = []
     METEOSONDE = []
+    SESSIONIDS = []
 
     with open('Dolgoprudnyj.dump', 'rb') as dump_:
         meteosonde_data = dill.load(dump_)
     m_keys = list(meteosonde_data.keys())
 
     reports = os.listdir(reports_dir)
-    reports = reports[::]
+    numbers, reports = np.asarray(list(enumerate(reports[::]))).T
 
     n_workers = 32
 
@@ -147,15 +151,17 @@ if __name__ == '__main__':
         n = manager.Value('d', 0)
 
         with Pool(processes=n_workers) as pool:
-            for report_names in np.array_split(reports, n_workers):
-                res = pool.apply_async(func=process, args=(report_names, n, ))
-                timestamps, pydatetime, radiometry, localmeteo, meteosonde = res.get()
+            for report_names, report_numbers in zip(np.array_split(reports, n_workers),
+                                                    np.array_split(numbers, n_workers)):
+                res = pool.apply_async(func=process, args=(report_names, report_numbers, n, ))
+                timestamps, pydatetime, sessionids, radiometry, localmeteo, meteosonde = res.get()
 
                 TIMESTAMPS.extend(timestamps)
                 PYDATETIME.extend(pydatetime)
                 RADIOMETRY.extend(radiometry)
                 LOCALMETEO.extend(localmeteo)
                 METEOSONDE.extend(meteosonde)
+                SESSIONIDS.extend(sessionids)
 
     print('\n\nCreating dumps..\n')
 
@@ -170,9 +176,11 @@ if __name__ == '__main__':
     dump(_obj=np.asarray(RADIOMETRY, dtype=np.float32), _name='radiometry', _dump_options=['numpy'])
     dump(_obj=np.asarray(LOCALMETEO, dtype=np.float32), _name='localmeteo', _dump_options=['numpy'])
     dump(_obj=np.asarray(METEOSONDE, dtype=int), _name='meteosonde', _dump_options=['numpy'])
+    dump(_obj=np.asarray(SESSIONIDS, dtype=int), _name='sessionids', _dump_options=['numpy'])
 
     dump(_obj=np.asarray(TIMESTAMPS), _name='timestamps', _dump_options=['dill'])
     dump(_obj=np.asarray(PYDATETIME, dtype=int), _name='pydatetime', _dump_options=['dill'])
     dump(_obj=np.asarray(RADIOMETRY, dtype=np.float32), _name='radiometry', _dump_options=['dill'])
     dump(_obj=np.asarray(LOCALMETEO, dtype=np.float32), _name='localmeteo', _dump_options=['dill'])
     dump(_obj=np.asarray(METEOSONDE, dtype=int), _name='meteosonde', _dump_options=['dill'])
+    dump(_obj=np.asarray(SESSIONIDS, dtype=int), _name='sessionids', _dump_options=['dill'])
