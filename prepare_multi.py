@@ -12,11 +12,13 @@ from multiprocessing import Pool, Manager
 
 reports_dir = os.path.join('full_spec_data', 'tb')
 
-reports = os.listdir(reports_dir)
-
 
 def process(_report_names, _n):
-    _out_ = []
+    _timestamps_ = []
+    _pydatetime_ = []
+    _radiometry_ = []
+    _localmeteo_ = []
+    _meteosonde_ = []
 
     for report_name in _report_names:
         YY = report_name[6:10]
@@ -89,40 +91,88 @@ def process(_report_names, _n):
                 if wind < 0 or wind > 100:
                     continue
 
-                # timestamp = timestamp
+                _timestamps_.append(timestamp)
 
-                radiometry = np.asarray([float(e) for i, e in enumerate(line) if e and 0 < i < 48], dtype=np.float32)
+                pydt = TDateTime.fromDouble(timestamp).toPythonDateTime()
+                pydatetime_ = np.asarray([pydt.year, pydt.month, pydt.day,
+                                          pydt.hour, pydt.minute, pydt.second, pydt.microsecond], dtype=int)
+                _pydatetime_.append(pydatetime_)
 
-                localmeteo = np.asarray([T, P, hum, wind, rain], dtype=np.float32)
+                radiometry_ = np.asarray([float(e) for i, e in enumerate(line) if e and 0 < i < 48], dtype=np.float32)
+                _radiometry_.append(radiometry_)
 
-                meteosonde = np.asarray(r_key, dtype=int)
+                localmeteo_ = np.asarray([T, P, hum, wind, rain], dtype=np.float32)
+                _localmeteo_.append(localmeteo_)
 
-                _out_.append([timestamp, radiometry, localmeteo, meteosonde])
+                meteosonde_ = np.asarray(r_key, dtype=int)
+                _meteosonde_.append(meteosonde_)
 
         _n.value += 1
         print(colored('\r{:.3f}%'.format(_n.value / len(reports) * 100), 'green'), flush=True, end='          ')
 
-    return _out_
+    return _timestamps_, _pydatetime_, _radiometry_, _localmeteo_, _meteosonde_
+
+
+def dump(_obj, _name, _dump_options):
+    if not os.path.exists('dump'):
+        os.makedirs('dump')
+    print(colored('{}...'.format(_name), 'blue'))
+    if 'numpy' in _dump_options:
+        np.save(os.path.join('dump', '{}.npy'.format(_name)), _obj)
+        print(colored('...numpy', 'green'))
+    if 'dill' in _dump_options:
+        with open(os.path.join('dump', '{}.dump'.format(_name)), 'wb') as _dump:
+            dill.dump(_obj, _dump, recurse=True)
+        print(colored('...dill', 'green'))
 
 
 if __name__ == '__main__':
 
-    with open('Dolgoprudnyj.dump', 'rb') as dump:
-        meteosonde_data = dill.load(dump)
+    TIMESTAMPS = []
+    PYDATETIME = []
+    RADIOMETRY = []
+    LOCALMETEO = []
+    METEOSONDE = []
+
+    with open('Dolgoprudnyj.dump', 'rb') as dump_:
+        meteosonde_data = dill.load(dump_)
     m_keys = list(meteosonde_data.keys())
 
+    reports = os.listdir(reports_dir)
     reports = reports[::]
 
     n_workers = 32
-    out = list()
+
     with Manager() as manager:
         n = manager.Value('d', 0)
 
         with Pool(processes=n_workers) as pool:
             for report_names in np.array_split(reports, n_workers):
                 res = pool.apply_async(func=process, args=(report_names, n, ))
-                out.extend(res.get())
+                timestamps, pydatetime, radiometry, localmeteo, meteosonde = res.get()
 
-    print('\ncreating a dump..')
+                TIMESTAMPS.extend(timestamps)
+                PYDATETIME.extend(pydatetime)
+                RADIOMETRY.extend(radiometry)
+                LOCALMETEO.extend(localmeteo)
+                METEOSONDE.extend(meteosonde)
 
-    np.save('DATA.npy', np.asarray(out, dtype=object))
+    print('\n\nCreating dumps..\n')
+
+    # dump(_obj=np.asarray(TIMESTAMPS), _name='timestamps', _dump_options=['numpy', 'dill'])
+    # dump(_obj=np.asarray(PYDATETIME, dtype=int), _name='pydatetime', _dump_options=['numpy', 'dill'])
+    # dump(_obj=np.asarray(RADIOMETRY, dtype=np.float32), _name='radiometry', _dump_options=['numpy', 'dill'])
+    # dump(_obj=np.asarray(LOCALMETEO, dtype=np.float32), _name='localmeteo', _dump_options=['numpy', 'dill'])
+    # dump(_obj=np.asarray(METEOSONDE, dtype=int), _name='meteosonde', _dump_options=['numpy', 'dill'])
+
+    dump(_obj=np.asarray(TIMESTAMPS), _name='timestamps', _dump_options=['numpy'])
+    dump(_obj=np.asarray(PYDATETIME, dtype=int), _name='pydatetime', _dump_options=['numpy'])
+    dump(_obj=np.asarray(RADIOMETRY, dtype=np.float32), _name='radiometry', _dump_options=['numpy'])
+    dump(_obj=np.asarray(LOCALMETEO, dtype=np.float32), _name='localmeteo', _dump_options=['numpy'])
+    dump(_obj=np.asarray(METEOSONDE, dtype=int), _name='meteosonde', _dump_options=['numpy'])
+
+    dump(_obj=np.asarray(TIMESTAMPS), _name='timestamps', _dump_options=['dill'])
+    dump(_obj=np.asarray(PYDATETIME, dtype=int), _name='pydatetime', _dump_options=['dill'])
+    dump(_obj=np.asarray(RADIOMETRY, dtype=np.float32), _name='radiometry', _dump_options=['dill'])
+    dump(_obj=np.asarray(LOCALMETEO, dtype=np.float32), _name='localmeteo', _dump_options=['dill'])
+    dump(_obj=np.asarray(METEOSONDE, dtype=int), _name='meteosonde', _dump_options=['dill'])
