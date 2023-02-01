@@ -124,5 +124,5 @@ if __name__ == '__main__':
                 out.extend(res.get())
 
     print('\ncreating a dump..')
-    with open('DATA.bin', 'wb') as dump:
-        dill.dump(np.asarray(out, dtype=object), dump, recurse=True)
+
+    np.save('DATA.npy', np.asarray(out, dtype=object))
