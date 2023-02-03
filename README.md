@@ -10,7 +10,7 @@ $ python3 c_setup.py build_ext --inplace
 for building cython-extensions (c++ modules)
 
 Example:<br>
-$ python3 main.py -Y 2019 -M 08 -D 23 --hh 18 --mm 30 --range --sameday --H1 20 --m1 00 --saveplots --sfreport --wreport --erase
+$ python main.py -Y 2019 -M 08 -D 23 --hh 18 --mm 30 --range --sameday --H1 20 --m1 00 --saveplots --sfreport --wreport --erase
 
 
 <pre>
@@ -87,3 +87,22 @@ optional arguments:
   --recycle RECYCLE     Specify how many times brightness temperature series
                         are repeated.
 </pre>
+
+<hr/><br/>
+
+"P22M" dataset preparation:
+
+1. Prepare local meteo data - meteo_1.csv & meteo_2.csv. Use <font color='cyan'>prepare_local_meteo.ipynb</font>
+2. Update meteo-. Run <font color='cyan'>python main.py --update_meteo</font>
+3. Collect, calibrate and preprocess all existing files from server. Run <font color='cyan'>python collect.py</font><br/>
+Wait! If script finishes before all the files are processed, just restart it. (Note, you'll need more than 250Gb of free disk space)
+4. Delete all files in ./bf and ./tf subfolders to save disk space (optional).
+5. Parse radiosonde data stored in HTML-format at ./Dolgoprudnyj subfolder. Run <font color='cyan'>python Dolgoprudnyj_parse.py</font>
+6. Bring all the altitude profiles measured via radiosonde to a single altitude grid. 
+Run <font color='cyan'>python Dolgoprudnyj_prepare.py</font>
+7. Generate dumps. Run <font color='cyan'>python prepare_multi.py</font>
+8. Clone atmrad repo<br/>
+.../meteo-$ cd ..<br/>
+.../$ git clone https://github.com/dobribobri/atmrad
+9. Compute true TWV values from radiosonde profiles and update dumps. 
+Use <font color='cyan'>prepare_q_real.ipynb</font>
