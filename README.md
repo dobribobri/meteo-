@@ -92,17 +92,20 @@ optional arguments:
 
 "P22M" dataset preparation:
 
-1. Prepare local meteo data - meteo_1.csv & meteo_2.csv. Use <font color='cyan'>prepare_local_meteo.ipynb</font>
-2. Update meteo-. Run <font color='cyan'>python main.py --update_meteo</font>
-3. Collect, calibrate and preprocess all existing files from server. Run <font color='cyan'>python collect.py</font><br/>
+1. Prepare local meteo data - meteo_1.csv & meteo_2.csv. Use <b><font color='cyan'>prepare_local_meteo.ipynb</font></b>
+2. Update meteo-. Run <pre><font color='cyan'>python main.py --update_meteo</font></pre>
+3. Collect, calibrate and preprocess all existing files from server. Run <pre><font color='cyan'>python collect.py</font></pre>
 Wait! If script finishes before all the files are processed, just restart it. (Note, you'll need more than 250Gb of free disk space)
-4. Delete all files in ./bf and ./tf subfolders to save disk space (optional).
-5. Parse radiosonde data stored in HTML-format at ./Dolgoprudnyj subfolder. Run <font color='cyan'>python Dolgoprudnyj_parse.py</font>
+4. Delete all files in <b>./bf</b> and <b>./tf</b> subfolders to save disk space (optional).
+5. Parse radiosonde data stored in HTML-format at ./Dolgoprudnyj subfolder. Run <pre><font color='cyan'>python Dolgoprudnyj_parse.py</font></pre>
 6. Bring all the altitude profiles measured via radiosonde to a single altitude grid. 
-Run <font color='cyan'>python Dolgoprudnyj_prepare.py</font>
-7. Generate dumps. Run <font color='cyan'>python prepare_multi.py</font>
-8. Clone atmrad repo<br/>
-.../meteo-$ cd ..<br/>
-.../$ git clone https://github.com/dobribobri/atmrad
+Run <pre><font color='cyan'>python Dolgoprudnyj_prepare.py</font></pre>
+7. Generate dumps. Run <pre><font color='cyan'>python prepare_multi.py</font></pre>
+8. Clone atmrad repo<br/><pre>.../meteo-$ cd ..
+.../$ git clone https://github.com/dobribobri/atmrad </pre>
 9. Compute true TWV values from radiosonde profiles and update dumps. 
-Use <font color='cyan'>prepare_q_real.ipynb</font>
+Use <b><font color='cyan'>prepare_q_real.ipynb</font></b> (optional)
+10. Select the time intervals you are interested in (seasons, individual days, time of day e t.c.). Specify <b>path_to_dump_dir</b>.
+Use <b><font color='cyan'>select.ipynb</font></b>
+11. Solve the inverse problem to retrieve TWV and LWC values from the selected microwave radiometry data.
+Run <pre><font color='cyan'>python prepare_qw.py -P '%path_to_dump_dir%'</font></pre>
