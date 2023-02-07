@@ -111,3 +111,4 @@ Use <b><font color='cyan'>select.ipynb</font></b>
 Run <pre><font color='cyan'>python prepare_qw_dualfreq.py -P '%path_to_dump_dir%'</font></pre>
 or <pre><font color='cyan'>python prepare_qw_multifreq.py -R 17.25 --lm --ms --path_to_dump_dir '%path_to_dump_dir%'</font></pre>
 For more information type <pre><font color='cyan'>python prepare_qw_multifreq.py --help</font></pre>
+Also consider setting environment variable <pre>.../meteo-$ export TF_GPU_ALLOCATOR=cuda_malloc_async</pre>
