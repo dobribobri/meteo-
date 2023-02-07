@@ -108,4 +108,6 @@ Use <b><font color='cyan'>prepare_q_real.ipynb</font></b> (optional)
 10. Select the time intervals you are interested in (seasons, individual days, time of day e t.c.). Specify <b>path_to_dump_dir</b>.
 Use <b><font color='cyan'>select.ipynb</font></b>
 11. Solve the inverse problem to retrieve TWV and LWC values from the selected microwave radiometry data.
-Run <pre><font color='cyan'>python prepare_qw.py -P '%path_to_dump_dir%'</font></pre>
+Run <pre><font color='cyan'>python prepare_qw_dualfreq.py -P '%path_to_dump_dir%'</font></pre>
+or <pre><font color='cyan'>python prepare_qw_multifreq.py -R 17.25 --lm --ms --path_to_dump_dir '%path_to_dump_dir%'</font></pre>
+For more information type <pre><font color='cyan'>python prepare_qw_multifreq.py --help</font></pre>
