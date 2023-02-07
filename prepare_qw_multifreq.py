@@ -362,12 +362,19 @@ if __name__ == '__main__':
         del stdAtm
         del realAtm
 
+        if int(ns.lm):
+            np.save(os.path.join(dump_dir, 'qretrlm.npy'), QRETRLM)
+            np.save(os.path.join(dump_dir, 'wretrlm.npy'), WRETRLM)
+        if int(ns.ms):
+            np.save(os.path.join(dump_dir, 'qretrms.npy'), QRETRMS)
+            np.save(os.path.join(dump_dir, 'wretrms.npy'), WRETRMS)
+
         progress += len(indexes)
         end = time.time() - start
 
         print(colored('Total progress: {:.5f}% \t\t Batch no. {} out of {}\t\t Time spent per batch: {:.4f}'.format(
             progress / len(TS) * 100.,
-            n + 1, len(batches),
+            n + 1, n_batches,
             end),
             'green')
         )
