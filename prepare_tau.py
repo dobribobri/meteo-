@@ -27,15 +27,15 @@ def createArgParser():
     return _p
 
 
-def dump(_obj, _name, _dump_options):
-    if not os.path.exists('dump'):
-        os.makedirs('dump')
+def dump(_obj, _path_to_dump_dir, _name, _dump_options):
+    if not os.path.exists(_path_to_dump_dir):
+        os.makedirs(_path_to_dump_dir)
     print(colored('{}...'.format(_name), 'blue'))
     if 'numpy' in _dump_options:
-        np.save(os.path.join('dump', '{}.npy'.format(_name)), _obj)
+        np.save(os.path.join(_path_to_dump_dir, '{}.npy'.format(_name)), _obj)
         print(colored('...numpy', 'green'))
     if 'dill' in _dump_options:
-        with open(os.path.join('dump', '{}.dump'.format(_name)), 'wb') as _dump:
+        with open(os.path.join(_path_to_dump_dir, '{}.dump'.format(_name)), 'wb') as _dump:
             dill.dump(_obj, _dump, recurse=True)
         print(colored('...dill', 'green'))
 
@@ -127,5 +127,5 @@ if __name__ == '__main__':
 
     TAU = np.asarray(TAU, dtype=np.float32).T
 
-    dump(_obj=TAU, _name='tau', _dump_options=['numpy'])
-    dump(_obj=TAU, _name='tau', _dump_options=['dill'])
+    dump(_obj=TAU, _path_to_dump_dir=dump_dir, _name='tau', _dump_options=['numpy'])
+    dump(_obj=TAU, _path_to_dump_dir=dump_dir, _name='tau', _dump_options=['dill'])
