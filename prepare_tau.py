@@ -113,6 +113,17 @@ if __name__ == '__main__':
 
         TAU = np.hstack((TAU, np.asarray(tau_e_std[:, 0, :], dtype=np.float32).T))
 
+        dump(_obj=np.asarray(TAU, dtype=np.float32).T,
+             _path_to_dump_dir=dump_dir,
+             _name='tau',
+             _dump_options=['numpy']
+        )
+
+        del stdAtm
+        del brt
+        del t_avg_down_std
+        del tau_e_std
+
         progress += len(indexes)
         end = time.time() - start
 
@@ -126,6 +137,5 @@ if __name__ == '__main__':
     print('\nСохраняем...')
 
     TAU = np.asarray(TAU, dtype=np.float32).T
-
     dump(_obj=TAU, _path_to_dump_dir=dump_dir, _name='tau', _dump_options=['numpy'])
     dump(_obj=TAU, _path_to_dump_dir=dump_dir, _name='tau', _dump_options=['dill'])
