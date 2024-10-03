@@ -72,7 +72,8 @@ class Settings:
         password: str = 'radireftp'
 
         measurementsRoot: str = os.path.join('/home/rad/', radiometerName)
-        year_path: dict = {2023: measurementsRoot,
+        year_path: dict = {2024: measurementsRoot,
+                           2023: measurementsRoot,
                            2022: os.path.join(measurementsRoot, '2022/'),
                            2021: os.path.join(measurementsRoot, '2021/'),
                            2020: os.path.join(measurementsRoot, '2020/'),

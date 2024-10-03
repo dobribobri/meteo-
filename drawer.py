@@ -16,10 +16,6 @@ rc('text', usetex=True)
 rc('text.latex', preamble=r"\usepackage[T2A]{fontenc}")
 rc('text.latex', preamble=r"\usepackage[utf8]{inputenc}")
 rc('text.latex', preamble=r"\usepackage[russian]{babel}")
-# import matplotlib
-# matplotlib.rcParams.update({'font.size': 12})
-# matplotlib.rcParams.update({'font.family': 'serif'})
-# matplotlib.rcParams.update({'text.latex.preamble': r'\usepackage[russian]{babel}\usepackage{amsmath}'})
 
 
 class Drawer:

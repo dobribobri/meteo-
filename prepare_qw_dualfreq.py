@@ -27,6 +27,11 @@ def createArgParser():
     p = argparse.ArgumentParser()
     p.add_argument('-P', '--path_to_dump_dir', default='./dump/summer/2019/',
                    help='Where to get data from?')
+    p.add_argument('--tcl', default=0, help="Average effective cloud temperature, Cels.")
+    p.add_argument('--qretrlmname', default='qretrlm')
+    p.add_argument('--wretrlmname', default='wretrlm')
+    p.add_argument('--qretrmsname', default='qretrms')
+    p.add_argument('--wretrmsname', default='wretrms')
     return p
 
 
@@ -48,12 +53,14 @@ if __name__ == '__main__':
     parser = createArgParser()
     ns = parser.parse_args(sys.argv[1:])
     dump_dir = ns.path_to_dump_dir
+    tcl = float(ns.tcl)
 
     print(colored('\nDUMP dir is {}'.format(dump_dir), 'blue'))
 
     TS = np.load(os.path.join(dump_dir, 'ts.npy'))
     DT = np.load(os.path.join(dump_dir, 'dt.npy'))
-    BT = np.load(os.path.join(dump_dir, 'bt.npy'))
+    # BT = np.load(os.path.join(dump_dir, 'bt.npy'))
+    BT = np.load(os.path.join(dump_dir, 'btc1.npy'))
     LM = np.load(os.path.join(dump_dir, 'lm.npy'))
     MS = np.load(os.path.join(dump_dir, 'ms.npy'))
     ID = np.load(os.path.join(dump_dir, 'id.npy'))
@@ -91,7 +98,9 @@ if __name__ == '__main__':
     # frequencies = [resonance_channel] + second_channel
     frequency_pairs = [(resonance_frequency, sc) for sc in second_frequencies]
 
-    K_W_STD = [[kw(nu, t=0.) for nu in freq_pair] for freq_pair in frequency_pairs]
+    print("Средняя эффективная температура облака t_cl = {}".format(tcl))
+
+    K_W_STD = [[kw(nu, t=tcl) for nu in freq_pair] for freq_pair in frequency_pairs]
 
     _, _, _, alt = meteosonde_data[tuple(MS[0])]
 
@@ -300,7 +309,7 @@ if __name__ == '__main__':
 
     np.save(os.path.join(dump_dir, 'qstd.npy'), QSTD)
     np.save(os.path.join(dump_dir, 'qreal.npy'), QREAL)
-    np.save(os.path.join(dump_dir, 'qretrlm.npy'), QRETRLM)
-    np.save(os.path.join(dump_dir, 'wretrlm.npy'), WRETRLM)
-    np.save(os.path.join(dump_dir, 'qretrms.npy'), QRETRMS)
-    np.save(os.path.join(dump_dir, 'wretrms.npy'), WRETRMS)
+    np.save(os.path.join(dump_dir, '{}.npy'.format(ns.qretrlmname)), QRETRLM)
+    np.save(os.path.join(dump_dir, '{}.npy'.format(ns.wretrlmname)), WRETRLM)
+    np.save(os.path.join(dump_dir, '{}.npy'.format(ns.qretrmsname)), QRETRMS)
+    np.save(os.path.join(dump_dir, '{}.npy'.format(ns.wretrmsname)), WRETRMS)

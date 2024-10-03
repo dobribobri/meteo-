@@ -57,8 +57,8 @@ with Manager() as manager:
             k.value += 1
             continue
 
-        if str(c.year) == '2023':
-            continue
+        # if str(c.year) == '2024':
+        #     continue
 
         command = 'python3 main.py --range ' + \
                   '-Y {} -M {} -D {} '.format(c.year, c.month, c.day) + \

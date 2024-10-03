@@ -33,6 +33,11 @@ def createArgParser():
                     help='Compute QRETRLM, WRETRLM')
     _p.add_argument('--ms', action='store_true', default=False,
                     help='Compute QRETRMS, WRETRMS')
+    _p.add_argument('--tcl', default=0, help="Average effective cloud temperature, Cels.")
+    _p.add_argument('--qretrlmname', default='qretrlm_multifreq')
+    _p.add_argument('--wretrlmname', default='wretrlm_multifreq')
+    _p.add_argument('--qretrmsname', default='qretrms_multifreq')
+    _p.add_argument('--wretrmsname', default='wretrms_multifreq')
     return _p
 
 
@@ -54,6 +59,7 @@ if __name__ == '__main__':
     parser = createArgParser()
     ns = parser.parse_args(sys.argv[1:])
     dump_dir = ns.path_to_dump_dir
+    tcl = float(ns.tcl)
     r = float(ns.regularization)
     if not r:
         print(colored('No regularization!\n', 'yellow'))
@@ -64,7 +70,7 @@ if __name__ == '__main__':
 
     TS = np.load(os.path.join(dump_dir, 'ts.npy'))
     # DT = np.load(os.path.join(dump_dir, 'dt.npy'))
-    BT = np.load(os.path.join(dump_dir, 'bt.npy'))
+    BT = np.load(os.path.join(dump_dir, 'btc1.npy'))
     LM = np.load(os.path.join(dump_dir, 'lm.npy'))
     MS = np.load(os.path.join(dump_dir, 'ms.npy'))
     # ID = np.load(os.path.join(dump_dir, 'id.npy'))
@@ -99,7 +105,9 @@ if __name__ == '__main__':
     # for i, f in enumerate(frequencies):
     #     channels[np.round(f, decimals=1)] = i
 
-    K_W_STD = np.asarray([kw(nu, t=0.) for nu in frequencies])
+    print("Средняя эффективная температура облака t_cl = {}".format(tcl))
+
+    K_W_STD = np.asarray([kw(nu, t=tcl) for nu in frequencies])
 
     _, _, _, alt = meteosonde_data[tuple(MS[0])]
 
@@ -362,12 +370,12 @@ if __name__ == '__main__':
         del stdAtm
         del realAtm
 
-        if int(ns.lm):
-            np.save(os.path.join(dump_dir, 'qretrlm.npy'), QRETRLM)
-            np.save(os.path.join(dump_dir, 'wretrlm.npy'), WRETRLM)
-        if int(ns.ms):
-            np.save(os.path.join(dump_dir, 'qretrms.npy'), QRETRMS)
-            np.save(os.path.join(dump_dir, 'wretrms.npy'), WRETRMS)
+        # if int(ns.lm):
+        #     np.save(os.path.join(dump_dir, '{}'.format(ns.qretrlmname)), QRETRLM)
+        #     np.save(os.path.join(dump_dir, '{}'.format(ns.wretrlmname)), WRETRLM)
+        # if int(ns.ms):
+        #     np.save(os.path.join(dump_dir, '{}'.format(ns.qretrmsname)), QRETRMS)
+        #     np.save(os.path.join(dump_dir, '{}'.format(ns.wretrmsname)), WRETRMS)
 
         progress += len(indexes)
         end = time.time() - start
@@ -384,12 +392,12 @@ if __name__ == '__main__':
     QSTD = np.asarray(QSTD)
     QREAL = np.asarray(QREAL)
 
-    np.save(os.path.join(dump_dir, 'qstd.npy'), QSTD)
-    np.save(os.path.join(dump_dir, 'qreal.npy'), QREAL)
+    # np.save(os.path.join(dump_dir, 'qstd.npy'), QSTD)
+    # np.save(os.path.join(dump_dir, 'qreal.npy'), QREAL)
 
     if int(ns.lm):
-        np.save(os.path.join(dump_dir, 'qretrlm.npy'), QRETRLM)
-        np.save(os.path.join(dump_dir, 'wretrlm.npy'), WRETRLM)
+        np.save(os.path.join(dump_dir, '{}'.format(ns.qretrlmname)), QRETRLM)
+        np.save(os.path.join(dump_dir, '{}'.format(ns.wretrlmname)), WRETRLM)
     if int(ns.ms):
-        np.save(os.path.join(dump_dir, 'qretrms.npy'), QRETRMS)
-        np.save(os.path.join(dump_dir, 'wretrms.npy'), WRETRMS)
+        np.save(os.path.join(dump_dir, '{}'.format(ns.qretrmsname)), QRETRMS)
+        np.save(os.path.join(dump_dir, '{}'.format(ns.wretrmsname)), WRETRMS)

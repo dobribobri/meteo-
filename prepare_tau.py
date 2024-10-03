@@ -73,9 +73,10 @@ if __name__ == '__main__':
     TAU = np.asarray([[]] * len(frequencies))
 
     progress = 0.
-    n_batches = len(BT) // batch_size
+    n_batches = len(BT) // batch_size + 1
 
     for n in range(n_batches):
+            
         indexes = list(range(len(BT)))[n * batch_size: n * batch_size + batch_size]
 
         start = time.time()
