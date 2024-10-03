@@ -33,8 +33,7 @@ optional arguments:
                         meteodata: http://orash.ire.rssi.ru/meteo/index.php
   --update_meteo        Update weather data with --meteo csv-files. If --meteo
                         is missing (by default), following files are used:
-                        &apos;./meteo_1_2017-01-01_2019-09-01.csv&apos;,
-                        &apos;./meteo_2_2017-01-01_2019-09-01.csv&apos;
+                        './meteo_1.csv', './meteo_2.csv'
   --update_calibr       Download files used for primary calibration of
                         measurements.
   -Y YEAR, --year YEAR  Year in YYYY format (2017 by default).
