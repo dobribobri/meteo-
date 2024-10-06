@@ -26,6 +26,13 @@ ftp.login(Settings.Server.login, Settings.Server.password)
 
 ls = []
 for year in sorted(Settings.Server.year_path.keys()):
+
+    if year < 2019:
+        continue
+
+    # if year <= 2022:
+    #    continue
+
     ftp.cwd(Settings.Server.year_path[year])
     ftp.dir(ls.append)
 

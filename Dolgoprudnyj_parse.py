@@ -13,7 +13,7 @@ months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 
 month_codes = {}
 for i, m in enumerate(months):
     month_codes[m] = str(i+1).zfill(2)
-for html in htmls:
+for html in sorted(htmls):
     print(html)
     with open(os.path.join(folder, html), 'r') as f:
         contents = f.read()
