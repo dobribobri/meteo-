@@ -108,7 +108,7 @@ if __name__ == '__main__':
         QRETRLM, WRETRLM = np.zeros(ID.shape), np.zeros(ID.shape)
     if int(ns.ms):
         QREAL = np.zeros(ID.shape)
-        QRETRMS, WRETRMS = np.zeros(ID.shape), np.asarray(ID.shape)
+        QRETRMS, WRETRMS = np.zeros(ID.shape), np.zeros(ID.shape)
 
     progress = 0.
     unique_ids = np.unique(ID)
