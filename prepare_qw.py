@@ -42,8 +42,10 @@ def createArgParser():
     _p.add_argument('--correction', action='store_true', default=False,
                     help='Correction of the retrieved values')
     _p.add_argument('--tcl', default=0, help="Average effective cloud temperature, Cels.")
+    _p.add_argument('--qstdname', default='qstd')
     _p.add_argument('--qretrlmname', default='qretrlm_multifreq')
     _p.add_argument('--wretrlmname', default='wretrlm_multifreq')
+    _p.add_argument('--qrealname', default='qreal')
     _p.add_argument('--qretrmsname', default='qretrms_multifreq')
     _p.add_argument('--wretrmsname', default='wretrms_multifreq')
     return _p
@@ -116,8 +118,6 @@ if __name__ == '__main__':
     print()
 
     def process(session_id):
-        # start = time.time()
-
         cond = (ID == session_id)
 
         batch_size = np.count_nonzero(cond)
@@ -127,6 +127,8 @@ if __name__ == '__main__':
 
         stdAtm = Atmosphere.Standard()
         realAtm = Atmosphere.Standard()
+
+        qstd, qreal = None, None
 
         if int(ns.lm):
             lm = LM[cond]
@@ -143,7 +145,7 @@ if __name__ == '__main__':
             stdAtm.absolute_humidity = math.move_axis(math.as_tensor([math.transpose(stdAtm.absolute_humidity)]), 0, 1)
             stdAtm.liquid_water = math.move_axis(math.as_tensor([math.transpose(stdAtm.liquid_water)]), 0, 1)
 
-            QSTD[cond] = np.asarray(stdAtm.Q)[:, 0]
+            qstd = np.asarray(stdAtm.Q)[:, 0]
 
         if int(ns.ms):
             ms = MS[cond]
@@ -162,7 +164,7 @@ if __name__ == '__main__':
             del P
             del rho_rel
 
-            QREAL[cond] = np.asarray(realAtm.Q)[:, 0]
+            qreal = np.asarray(realAtm.Q)[:, 0]
 
         k_w = math.move_axis(math.as_tensor([[K_W[:]] * batch_size]), 0, 1)  # (batch_size, 1, 47)
 
@@ -281,17 +283,7 @@ if __name__ == '__main__':
         del k_w, brt
         del stdAtm, realAtm
 
-        # progress += 1
-        # end = time.time() - start
-        #
-        # print(colored('Total progress: {:.5f}% \t\t Session no. {} out of {}\t\t Time spent per batch: {:.4f}'.format(
-        #     progress / len(unique_ids) * 100.,
-        #     progress, len(unique_ids),
-        #     end),
-        #     'green')
-        # )
-
-        return session_id, qretrlm, wretrlm, qretrms, wretrms
+        return session_id, qstd, qretrlm, wretrlm, qreal, qretrms, wretrms
 
     n_workers = int(ns.nworkers)
 
@@ -301,20 +293,24 @@ if __name__ == '__main__':
         for result in tqdm.tqdm(pool.imap_unordered(process, unique_ids), total=len(unique_ids)):
             results.append(result)
 
-    for session_id, qretrlm, wretrlm, qretrms, wretrms in results:
-        cond = (ID == session_id)
+    for _session_id, _qstd, _qretrlm, _wretrlm, _qreal, _qretrms, _wretrms in results:
+        _cond = (ID == _session_id)
         if int(ns.lm):
-            QRETRLM[cond] = qretrlm
-            WRETRLM[cond] = wretrlm
+            QSTD[_cond] = _qstd
+            QRETRLM[_cond] = _qretrlm
+            WRETRLM[_cond] = _wretrlm
         if int(ns.ms):
-            QRETRMS[cond] = qretrms
-            WRETRMS[cond] = wretrms
+            QREAL[_cond] = _qreal
+            QRETRMS[_cond] = _qretrms
+            WRETRMS[_cond] = _wretrms
 
     print('\nСохраняем...')
 
     if int(ns.lm):
+        np.save(os.path.join(dump_dir, '{}'.format(ns.qstdname)), QSTD)
         np.save(os.path.join(dump_dir, '{}'.format(ns.qretrlmname)), QRETRLM)
         np.save(os.path.join(dump_dir, '{}'.format(ns.wretrlmname)), WRETRLM)
     if int(ns.ms):
+        np.save(os.path.join(dump_dir, '{}'.format(ns.qrealname)), QREAL)
         np.save(os.path.join(dump_dir, '{}'.format(ns.qretrmsname)), QRETRMS)
         np.save(os.path.join(dump_dir, '{}'.format(ns.wretrmsname)), WRETRMS)
